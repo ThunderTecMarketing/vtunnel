@@ -9,15 +9,17 @@ import (
 
 
 func init() {
-	fmt.Println("init!!!!!!.....")
+	//comment this line when directive merge into caddy httpserver directives!
+	httpserver.RegisterDevDirective("vpn", "")
+
 	caddy.RegisterPlugin("vpn", caddy.Plugin{
 		ServerType: "http",
 		Action:     setup,
 	})
 }
 
+
 func setup(c *caddy.Controller) error {
-	fmt.Println("setup!!!!!!.....")
 
 	paths, err := parse(c)
 	if err != nil {
