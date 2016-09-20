@@ -1,7 +1,7 @@
 0.0.0.0
 
-caddy-vpn /hello
+vpn /hello
 
-caddy-vpn {
+vpn {
 	path /anotherpath
 }

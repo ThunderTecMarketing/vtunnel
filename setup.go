@@ -1,38 +1,24 @@
-package caddy-vpn
+package vpn
 
 import (
 	"fmt"
-	"net/http"
-
 	"github.com/mholt/caddy"
 	"github.com/mholt/caddy/caddyhttp/httpserver"
 )
 
-type handler struct {
-	Paths []string
-	Next  httpserver.Handler
-}
+
 
 func init() {
-	caddy.RegisterPlugin("caddy-vpn", caddy.Plugin{
+	fmt.Println("init!!!!!!.....")
+	caddy.RegisterPlugin("vpn", caddy.Plugin{
 		ServerType: "http",
 		Action:     setup,
 	})
 }
 
-func (h handler) ServeHTTP(w http.ResponseWriter, r *http.Request) (int, error) {
-	// if the request path is any of the configured paths
-	// write hello
-	for _, p := range h.Paths {
-		if httpserver.Path(r.URL.Path).Matches(p) {
-			w.Write([]byte("Hello, I'm a caddy middleware"))
-			return 200, nil
-		}
-	}
-	return h.Next.ServeHTTP(w, r)
-}
-
 func setup(c *caddy.Controller) error {
+	fmt.Println("setup!!!!!!.....")
+
 	paths, err := parse(c)
 	if err != nil {
 		return err
@@ -40,13 +26,13 @@ func setup(c *caddy.Controller) error {
 
 	// Runs on Caddy startup, useful for services or other setups.
 	c.OnStartup(func() error {
-		fmt.Println("caddy-vpn middleware is initiated")
+		fmt.Println("vpn middleware is initiated")
 		return nil
 	})
 
 	// Runs on Caddy shutdown, useful for cleanups.
 	c.OnShutdown(func() error {
-		fmt.Println("caddy-vpn middleware is cleaning up")
+		fmt.Println("vpn middleware is cleaning up")
 		return nil
 	})
 
@@ -65,9 +51,9 @@ func setup(c *caddy.Controller) error {
 func parse(c *caddy.Controller) ([]string, error) {
 	// This parses the following config blocks
 	/*
-		caddy-vpn /hello
-		caddy-vpn /anotherpath
-		caddy-vpn {
+		vpn /hello
+		vpn /anotherpath
+		vpn {
 			path /hello
 			path /anotherpath
 		}
