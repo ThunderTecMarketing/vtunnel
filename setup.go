@@ -7,13 +7,20 @@ import (
 	"fmt"
 	"strconv"
 	"log"
+	"os"
 )
 
 func init() {
+
+	if os.Getenv("CADDY_DEV_MODE") == "1" {
+		httpserver.RegisterDevDirective("vpn", "")
+	}
 	caddy.RegisterPlugin("vpn", caddy.Plugin{
-		ServerType: "http",
-		Action:     Setup,
+			ServerType: "http",
+			Action:     Setup,
 	})
+
+
 }
 
 func Setup(c *caddy.Controller) (err error) {

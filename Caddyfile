@@ -1,6 +1,6 @@
-0.0.0.0
+localhost:8080
 
-realip {
+vpn {
     publickey serverpublickey
     privatekey  serverprivatekey
     clients {

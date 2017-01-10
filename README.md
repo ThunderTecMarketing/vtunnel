@@ -1,23 +1,22 @@
-
+    
+A plugin for caddy that implements VPN like wireguard, but use HTTP2 for connection.
 
 ## Config file
 
 ```
-realip {
-    publickey name
-    privatekey   cidr
+vpn {
+    publickey serverpublickey
+    privatekey serverprivatekey
     clients {
-        client_publickey1
-        client_publickey2
-        client_publickey3
-        ...
+        publickey client_publickey1
+        publickey client_publickey2
+        publickey client_publickey3
     }
-    
-    subnet 192.168.4.1/24
     mtu 1400
+    subnet 192.168.4.1/24
     dnsport 53
-    authapi /auth
-    packetapi /packet
+    auth /auth
+    packet /packet
 }
 ```
 
