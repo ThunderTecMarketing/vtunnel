@@ -6,11 +6,13 @@ import (
 	"testing"
 	"github.com/mholt/caddy/caddyhttp/httpserver"
 	"github.com/mholt/caddy"
+	"errors"
+	"github.com/labstack/gommon/log"
 )
 
-func TestRealIP(t *testing.T) {
+func TestVPN(t *testing.T) {
 
-	input := `realip {
+	input := `vpn {
 		    publickey serverpublickey
 		    privatekey serverprivatekey
 		    clients {
@@ -32,11 +34,11 @@ func TestRealIP(t *testing.T) {
 	}
 
 	h.Next = httpserver.HandlerFunc(func(w http.ResponseWriter, r *http.Request) (int, error) {
-			return 0, nil
+			return 404, errors.New("404 error")
 		})
 
 
-	req, err := http.NewRequest("GET", "http://ftwo.me/auth/", nil)
+	req, err := http.NewRequest("GET", "http://localhost/auth/", nil)
 	if err != nil {
 		t.Fatalf("Test: Could not create HTTP request: %v", err)
 	}
@@ -47,5 +49,7 @@ func TestRealIP(t *testing.T) {
 	if rec.Code != 200 {
 		t.Errorf("Test fail: code[%d]\n", rec.Code)
 	}
+
+	log.Printf("rec.body = %v\n", rec.Body)
 
 }

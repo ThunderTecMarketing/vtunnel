@@ -6,6 +6,7 @@ import (
 	"github.com/mholt/caddy"
 	"fmt"
 	"strconv"
+	"log"
 )
 
 func init() {
@@ -48,40 +49,71 @@ func Setup(c *caddy.Controller) (err error) {
 }
 
 func Parse(c *caddy.Controller) (m *handler, err error) {
-	for c.NextBlock() {
-		var err error
-		switch c.Val() {
-		case "publickey":
-			m.PublicKey, err = StringArg(c)
-		case "privatekey":
-			m.PrivateKey, err = StringArg(c)
-		case "clients":
-			for c.NextBlock() {
-				var pubkey string
-				switch c.Val() {
-				case "publickey":
-					pubkey, err = StringArg(c)
-					m.ClientPublicKeys = append(m.ClientPublicKeys, pubkey)
-				}
-			}
-		case "subnet":
-			m.Ip, m.Subnet, err = CidrArg(c)
-		case "mtu":
-			m.MTU, err = UintArg(c)
-		case "dnsport":
-			m.DnsPort, err = UintArg(c)
-		case "auth":
-			m.AuthPath, err = StringArg(c)
-		case "packet":
-			m.PacketPath, err = StringArg(c)
+	m = &handler{}
+
+	if c.Next() {
+		args := c.RemainingArgs()
+		switch len(args) {
+		case 0:
+			break
 		default:
-			return c.Errf("Unknown vpn arg: %s", c.Val())
+			return nil, c.ArgErr()
 		}
-		if err != nil {
-			return err
+
+		for c.NextBlock() {
+			switch c.Val() {
+			case "publickey":
+				m.PublicKey, err = StringArg(c)
+			case "privatekey":
+				m.PrivateKey, err = StringArg(c)
+			case "clients":
+				c.Next()
+				c.IncrNest()
+				for c.NextBlock() {
+					var pubkey string
+					switch c.Val() {
+					case "publickey":
+						pubkey, err = StringArg(c)
+						if err != nil {
+							return
+						}
+
+						m.ClientPublicKeys = append(m.ClientPublicKeys, pubkey)
+					default:
+						log.Print("Error publickey now\n")
+
+						return nil, c.ArgErr()
+					}
+				}
+
+			case "subnet":
+				m.Ip, m.Subnet, err = CidrArg(c)
+				if m.Ip.To4() != nil {
+					m.Ip = m.Ip.To4()
+				}
+
+				if m.Subnet.IP.To4() != nil {
+					m.Subnet.IP = m.Subnet.IP.To4()
+				}
+			case "mtu":
+				m.MTU, err = Uint16Arg(c)
+			case "dnsport":
+				m.DnsPort, err = Uint16Arg(c)
+			case "auth":
+				m.AuthPath, err = StringArg(c)
+			case "packet":
+				m.PacketPath, err = StringArg(c)
+			default:
+				err = c.Errf("Unknown vpn arg: %s", c.Val())
+			}
+			if err != nil {
+				return
+			}
 		}
+
 	}
-	return nil
+
+	return
 }
 
 
@@ -100,11 +132,11 @@ func StringArg(c *caddy.Controller) (string, error) {
 func CidrArg(c *caddy.Controller) (net.IP, *net.IPNet, error) {
 	a, err := StringArg(c)
 	if err != nil {
-		return nil, err
+		return []byte{}, nil, err
 	}
 	ip, cidr, err := net.ParseCIDR(a)
 	if err != nil {
-		return nil, err
+		return []byte{}, nil, err
 	}
 	return ip, cidr, nil
 }
@@ -134,12 +166,13 @@ func NoArgs(c *caddy.Controller) error {
 	return nil
 }
 
-func UintArg(c *caddy.Controller) (num uint64, err error) {
+func Uint16Arg(c *caddy.Controller) (num uint16, err error) {
 	args := c.RemainingArgs()
 	if len(args) != 1 {
-		return "", c.ArgErr()
+		return 0, c.ArgErr()
 	}
 
-	num, err = strconv.ParseUint(args[0], 10, 16)
+	num64, err := strconv.ParseUint(args[0], 10, 16)
+	num = uint16(num64)
 	return
 }
