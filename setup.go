@@ -117,9 +117,9 @@ func Parse(c *caddy.Controller) (m *handler, err error) {
 				return
 			}
 		}
-
 	}
 
+	m.Fowarder, err = NewFowarder(m.Ip, m.Subnet, m.MTU)
 	return
 }
 

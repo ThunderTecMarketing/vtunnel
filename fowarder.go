@@ -23,39 +23,107 @@ import (
 	"github.com/FTwOoO/netstack/tcpip/link/channel"
 	"github.com/FTwOoO/netstack/tcpip/link/sniffer"
 	"net"
+	"github.com/FTwOoO/netstack/tcpip/buffer"
+	"github.com/FTwOoO/netstack/tcpip/network/ipv4"
+	"sync"
+	"context"
+	"golang.org/x/crypto/openpgp/errors"
 )
 
 type Fowarder struct {
-	linkEP  *channel.Endpoint
-	tun2ioM *tun2io.Tun2ioManager
-	stack   tcpip.Stack
+	linkEP      *channel.Endpoint
+	tun2ioM     *tun2io.Tun2ioManager
+	stack       tcpip.Stack
 	//defaultDialer proxy.Dialer
 	//dnsServ       *tun2io.DnsServer
+
+	writeChan   chan buffer.View
+
+	readViewsMu sync.Mutex
+	readViews   []buffer.View
+
+	ctx         context.Context
+	ctxCancel   context.CancelFunc
+	closeOne    sync.Once
 }
 
-func NewFowarder(ip net.IP, subnet *net.IPNet) (f *Fowarder, err error) {
-	const defaultMTU = 65536
-	id, linkEP := channel.New(256, defaultMTU, defaultLinkAddr)
+func NewFowarder(ip net.IP, subnet *net.IPNet, mtu int) (f *Fowarder, err error) {
+	id, linkEP := channel.New(256, mtu, defaultLinkAddr)
 	if false {
 		id = sniffer.New(id)
 	}
 
 	dialer := new(tun2io.DirectDialer)
-	tun2ioM, err := tun2io.Tun2IO(ip, subnet, defaultMTU, true, dialer)
+	tun2ioM, err := tun2io.Tun2IO(ip, subnet, id, true, dialer)
 	if err != nil {
 		return
 	}
 
-	f = &Fowarder{tun2ioM:tun2ioM, stack:tun2ioM.GetStack(), linkEP:linkEP}
+	f = &Fowarder{
+		tun2ioM:tun2ioM,
+		stack:tun2ioM.GetStack(),
+		linkEP:linkEP,
+		writeChan:make(chan []byte, 1024),
+	}
+
+	f.ctx, f.ctxCancel = context.WithCancel(context.Background())
+	go f.reader()
+	go f.writer()
 
 	return f, nil
+}
+
+func (f *Fowarder) writer() {
+	for {
+		select {
+		case b := <-f.writeChan:
+			views := [1]buffer.View{b}
+			vv := buffer.NewVectorisedView(len(b), views)
+			f.linkEP.Inject(ipv4.ProtocolNumber, &vv)
+		case <-f.ctx.Done():
+			return
+		}
+	}
+}
+
+func (f *Fowarder) reader() {
+
+	for {
+		select {
+		case b := <-f.linkEP.C:
+			f.readViewsMu.Lock()
+			f.readViews = append(f.readViews, buffer.View(b))
+			f.readViewsMu.Unlock()
+		case <-f.ctx.Done():
+			return
+		}
+	}
 
 }
 
-func (f *Fowarder) Send([] byte) {
-
+func (f *Fowarder) Send(b buffer.View) {
+	f.writeChan <- buffer.View(b)
 }
 
-func (f *Fowarder) Recv() ([]byte, error) {
+func (f *Fowarder) Recv() ([]buffer.View, error) {
 
+	f.readViewsMu.Lock()
+	defer f.readViewsMu.Unlock()
+
+	if len(f.readViews) > 0 {
+		ret := f.readViews
+		f.readViews = []buffer.View{}
+		return ret, nil
+	}
+
+	return nil, errors.ErrKeyIncorrect
+}
+
+
+func(f *Fowarder) Close(reason error) {
+
+	f.closeOne.Do(func() {
+		f.ctxCancel()
+	})
+	return
 }

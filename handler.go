@@ -8,6 +8,7 @@ import (
 type handler struct {
 	Config
 	Next httpserver.Handler
+	Fowarder Fowarder
 }
 
 func (m *handler) ServeHTTP(w http.ResponseWriter, req *http.Request) (int, error) {
@@ -20,7 +21,17 @@ func (m *handler) ServeHTTP(w http.ResponseWriter, req *http.Request) (int, erro
 	}
 
 	if httpserver.Path(req.URL.Path).Matches(m.PacketPath) {
-		w.Write([]byte("Packet OK!"))
+		newPacket := make([]byte, m.Config.MTU)
+		n, err := req.Body.Read(newPacket)
+		if err == nil {
+			m.Fowarder.Send(newPacket[:n])
+		}
+
+		views, err := m.Fowarder.Recv()
+		if err != nil {
+			w.Write([]byte{})
+		}
+
 		return 200, nil
 	}
 
