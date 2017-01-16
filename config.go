@@ -19,7 +19,10 @@ package vpn
 
 import (
 	"net"
+	"github.com/FTwOoO/netstack/tcpip"
 )
+
+var defaultLinkAddr = tcpip.LinkAddress("\x0a\x0a\x0b\x0b\x0c\x0c")
 
 
 type Config struct {

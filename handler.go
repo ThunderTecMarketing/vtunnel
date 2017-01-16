@@ -7,7 +7,7 @@ import (
 
 type handler struct {
 	Config
-	Next             httpserver.Handler
+	Next httpserver.Handler
 }
 
 func (m *handler) ServeHTTP(w http.ResponseWriter, req *http.Request) (int, error) {
