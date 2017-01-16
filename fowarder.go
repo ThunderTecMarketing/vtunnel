@@ -27,7 +27,7 @@ import (
 	"github.com/FTwOoO/netstack/tcpip/network/ipv4"
 	"sync"
 	"context"
-	"golang.org/x/crypto/openpgp/errors"
+	"errors"
 )
 
 type Fowarder struct {
@@ -116,7 +116,7 @@ func (f *Fowarder) Recv() ([]buffer.View, error) {
 		return ret, nil
 	}
 
-	return nil, errors.ErrKeyIncorrect
+	return nil, errors.New("???")
 }
 
 
