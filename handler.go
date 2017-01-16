@@ -1,23 +1,13 @@
 package vpn
 
 import (
-	"net"
 	"net/http"
 	"github.com/mholt/caddy/caddyhttp/httpserver"
 )
 
 type handler struct {
+	Config
 	Next             httpserver.Handler
-
-	PublicKey        string
-	PrivateKey       string
-	ClientPublicKeys []string
-	Ip               net.IP
-	Subnet           *net.IPNet
-	MTU              uint16
-	DnsPort          uint16
-	AuthPath         string
-	PacketPath       string
 }
 
 func (m *handler) ServeHTTP(w http.ResponseWriter, req *http.Request) (int, error) {

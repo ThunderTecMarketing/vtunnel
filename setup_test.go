@@ -33,15 +33,17 @@ func TestHeadersParse(t *testing.T) {
 
 			false,
 			&handler{
-				PublicKey:"serverpublickey",
-				PrivateKey:"serverprivatekey",
-				ClientPublicKeys: []string{"client_publickey1", "client_publickey2", "client_publickey3"},
-				Ip:net.IPv4(192, 168, 4, 1).To4(),
-				Subnet:&net.IPNet{IP:net.IPv4(192, 168, 4, 0).To4(), Mask: net.CIDRMask(24, 32)},
-				MTU:1400,
-				DnsPort:53,
-				AuthPath:"/auth",
-				PacketPath:"/packet",
+				Config:Config{
+					PublicKey:"serverpublickey",
+					PrivateKey:"serverprivatekey",
+					ClientPublicKeys: []string{"client_publickey1", "client_publickey2", "client_publickey3"},
+					Ip:net.IPv4(192, 168, 4, 1).To4(),
+					Subnet:&net.IPNet{IP:net.IPv4(192, 168, 4, 0).To4(), Mask: net.CIDRMask(24, 32)},
+					MTU:1400,
+					DnsPort:53,
+					AuthPath:"/auth",
+					PacketPath:"/packet",
+				},
 			},
 		},
 	}
