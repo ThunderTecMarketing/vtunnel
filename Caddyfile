@@ -1,12 +1,12 @@
 localhost:8080
 
 vpn {
-    publickey serverpublickey
-    privatekey  serverprivatekey
+    publickey 0102030405060708090A0B0C0D0E0F101112131415161718191A1B1C1D00
+    privatekey  0102030405060708090A0B0C0D0E0F101112131415161718191A1B1C1D01
     clients {
-        publickey client_publickey1
-        publickey client_publickey2
-        publickey client_publickey3
+        publickey 0102030405060708090A0B0C0D0E0F101112131415161718191A1B1C1D02
+        publickey 0102030405060708090A0B0C0D0E0F101112131415161718191A1B1C1D03
+        publickey 0102030405060708090A0B0C0D0E0F101112131415161718191A1B1C1D04
     }
 
     subnet 192.168.4.1/24

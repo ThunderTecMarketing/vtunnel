@@ -20,15 +20,17 @@ package vpn
 import (
 	"net"
 	"github.com/FTwOoO/netstack/tcpip"
+	"errors"
 )
 
 var defaultLinkAddr = tcpip.LinkAddress("\x0a\x0a\x0b\x0b\x0c\x0c")
+var ErrInValidHandshakeStep = errors.New("Invalid handshake step")
 
 
 type Config struct {
-	PublicKey        string
-	PrivateKey       string
-	ClientPublicKeys []string
+	PublicKey        []byte
+	PrivateKey       []byte
+	ClientPublicKeys [][]byte
 	Ip               net.IP
 	Subnet           *net.IPNet
 	MTU              uint16

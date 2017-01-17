@@ -7,8 +7,37 @@ import (
 	"github.com/mholt/caddy/caddyhttp/httpserver"
 	"github.com/mholt/caddy"
 	"errors"
-	"github.com/labstack/gommon/log"
+	"log"
+	"github.com/FTwOoO/noise"
 )
+
+func TestHandshake(t *testing.T) {
+	cs := noise.NewCipherSuite(noise.DH25519, noise.CipherAESGCM, noise.HashSHA256)
+	staticI := cs.GenerateKeypair(nil)
+	staticR := cs.GenerateKeypair(nil)
+
+	_, err := NewNoiseIKHandshake(
+		cs,
+		[]byte("caddy-vpn"),
+		staticI,
+		noise.DHKey{Public:staticR.Public},
+		true,
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = NewNoiseIKHandshake(
+		cs,
+		[]byte("caddy-vpn"),
+		noise.DHKey{},
+		staticR,
+		false,
+	)
+
+
+}
+
 
 func TestVPN(t *testing.T) {
 

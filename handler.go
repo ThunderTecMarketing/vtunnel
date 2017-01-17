@@ -8,7 +8,7 @@ import (
 type handler struct {
 	Config
 	Next httpserver.Handler
-	Fowarder Fowarder
+	Fowarder *Fowarder
 }
 
 func (m *handler) ServeHTTP(w http.ResponseWriter, req *http.Request) (int, error) {
@@ -27,7 +27,7 @@ func (m *handler) ServeHTTP(w http.ResponseWriter, req *http.Request) (int, erro
 			m.Fowarder.Send(newPacket[:n])
 		}
 
-		views, err := m.Fowarder.Recv()
+		_, err = m.Fowarder.Recv()
 		if err != nil {
 			w.Write([]byte{})
 		}

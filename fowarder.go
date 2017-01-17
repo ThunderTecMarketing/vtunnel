@@ -22,9 +22,9 @@ import (
 	"github.com/FTwOoO/netstack/tcpip"
 	"github.com/FTwOoO/netstack/tcpip/link/channel"
 	"github.com/FTwOoO/netstack/tcpip/link/sniffer"
-	"net"
 	"github.com/FTwOoO/netstack/tcpip/buffer"
 	"github.com/FTwOoO/netstack/tcpip/network/ipv4"
+	"net"
 	"sync"
 	"context"
 	"errors"
@@ -47,8 +47,8 @@ type Fowarder struct {
 	closeOne    sync.Once
 }
 
-func NewFowarder(ip net.IP, subnet *net.IPNet, mtu int) (f *Fowarder, err error) {
-	id, linkEP := channel.New(256, mtu, defaultLinkAddr)
+func NewFowarder(ip net.IP, subnet *net.IPNet, mtu uint16) (f *Fowarder, err error) {
+	id, linkEP := channel.New(256, uint32(mtu), defaultLinkAddr)
 	if false {
 		id = sniffer.New(id)
 	}
@@ -63,7 +63,7 @@ func NewFowarder(ip net.IP, subnet *net.IPNet, mtu int) (f *Fowarder, err error)
 		tun2ioM:tun2ioM,
 		stack:tun2ioM.GetStack(),
 		linkEP:linkEP,
-		writeChan:make(chan []byte, 1024),
+		writeChan:make(chan buffer.View, 1024),
 	}
 
 	f.ctx, f.ctxCancel = context.WithCancel(context.Background())
@@ -77,7 +77,7 @@ func (f *Fowarder) writer() {
 	for {
 		select {
 		case b := <-f.writeChan:
-			views := [1]buffer.View{b}
+			views := []buffer.View{b}
 			vv := buffer.NewVectorisedView(len(b), views)
 			f.linkEP.Inject(ipv4.ProtocolNumber, &vv)
 		case <-f.ctx.Done():
@@ -90,9 +90,10 @@ func (f *Fowarder) reader() {
 
 	for {
 		select {
-		case b := <-f.linkEP.C:
+		case p := <-f.linkEP.C:
 			f.readViewsMu.Lock()
-			f.readViews = append(f.readViews, buffer.View(b))
+			newPacket:= append([]byte(p.Header), []byte(p.Payload)...)
+			f.readViews = append(f.readViews, newPacket)
 			f.readViewsMu.Unlock()
 		case <-f.ctx.Done():
 			return
@@ -119,8 +120,7 @@ func (f *Fowarder) Recv() ([]buffer.View, error) {
 	return nil, errors.New("???")
 }
 
-
-func(f *Fowarder) Close(reason error) {
+func (f *Fowarder) Close(reason error) {
 
 	f.closeOne.Do(func() {
 		f.ctxCancel()

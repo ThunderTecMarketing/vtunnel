@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"log"
 	"os"
+	"encoding/hex"
 )
 
 func init() {
@@ -16,10 +17,9 @@ func init() {
 		httpserver.RegisterDevDirective("vpn", "")
 	}
 	caddy.RegisterPlugin("vpn", caddy.Plugin{
-			ServerType: "http",
-			Action:     Setup,
+		ServerType: "http",
+		Action:     Setup,
 	})
-
 
 }
 
@@ -58,6 +58,9 @@ func Setup(c *caddy.Controller) (err error) {
 func Parse(c *caddy.Controller) (m *handler, err error) {
 	m = &handler{}
 
+	var tempkey string
+	var clientkey []byte
+
 	if c.Next() {
 		args := c.RemainingArgs()
 		switch len(args) {
@@ -70,22 +73,29 @@ func Parse(c *caddy.Controller) (m *handler, err error) {
 		for c.NextBlock() {
 			switch c.Val() {
 			case "publickey":
-				m.PublicKey, err = StringArg(c)
+				tempkey, err = StringArg(c)
+				if err == nil {
+					m.PublicKey, err = hex.DecodeString(tempkey)
+				}
+
 			case "privatekey":
-				m.PrivateKey, err = StringArg(c)
+				tempkey, err = StringArg(c)
+				if err == nil {
+					m.PrivateKey, err = hex.DecodeString(tempkey)
+				}
 			case "clients":
 				c.Next()
 				c.IncrNest()
 				for c.NextBlock() {
-					var pubkey string
 					switch c.Val() {
 					case "publickey":
-						pubkey, err = StringArg(c)
+						tempkey, err = StringArg(c)
 						if err != nil {
 							return
 						}
 
-						m.ClientPublicKeys = append(m.ClientPublicKeys, pubkey)
+						clientkey, err =  hex.DecodeString(tempkey)
+						m.ClientPublicKeys = append(m.ClientPublicKeys, clientkey)
 					default:
 						log.Print("Error publickey now\n")
 
