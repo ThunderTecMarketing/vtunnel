@@ -21,7 +21,7 @@ import (
 	"github.com/FTwOoO/noise"
 )
 
-type NoiseIKHandshake struct {
+type NoiseIXHandshake struct {
 	Hs            *noise.HandshakeState
 	IsInitiator   bool
 	Pattern       noise.HandshakePattern
@@ -31,69 +31,54 @@ type NoiseIKHandshake struct {
 	handshakeStep int
 }
 
-func NewNoiseIKHandshake(cs noise.CipherSuite, pg []byte, staticI noise.DHKey, staticR noise.DHKey, isInitiator bool) (*NoiseIKHandshake, error) {
+func NewNoiseIXHandshake(cs noise.CipherSuite, pg []byte, staticKey noise.DHKey, isInitiator bool) (*NoiseIXHandshake, error) {
 
-	this := new(NoiseIKHandshake)
+	this := new(NoiseIXHandshake)
 	if cs == nil {
 		cs = noise.NewCipherSuite(noise.DH25519, noise.CipherAESGCM, noise.HashSHA256)
 	}
 
-	//staticI := cs.GenerateKeypair(nil)
-	//staticR := cs.GenerateKeypair(nil)
-
-	if isInitiator {
-		this.Hs = noise.NewHandshakeState(noise.Config{
-			CipherSuite: cs,
-			Pattern: noise.HandshakeIK,
-			Initiator: true,
-			Prologue: pg,
-			StaticKeypair: staticI,
-			PeerStatic: staticR.Public},
-		)
-	} else {
-
-		this.Hs = noise.NewHandshakeState(noise.Config{
-			CipherSuite: cs,
-			Pattern: noise.HandshakeIK,
-			Initiator:false,
-			Prologue: pg,
-			StaticKeypair: staticR},
-		)
-	}
+	this.Hs = noise.NewHandshakeState(noise.Config{
+		CipherSuite: cs,
+		Pattern: noise.HandshakeIX,
+		Initiator: isInitiator,
+		Prologue: pg,
+		StaticKeypair: staticKey},
+	)
 
 	this.IsInitiator = isInitiator
 	this.Pattern = noise.HandshakeIK
 	return this, nil
 }
 
-func (this *NoiseIKHandshake) isHandshakeCompleted() bool {
+func (this *NoiseIXHandshake) isHandshakeCompleted() bool {
 	return this.handshakeStep >= len(this.Pattern.Messages)
 }
 
-func (this *NoiseIKHandshake) isWriteStep() bool {
+func (this *NoiseIXHandshake) isWriteStep() bool {
 	return (this.handshakeStep % 2 == 1 && this.IsInitiator) || (this.handshakeStep % 2 == 0 && !this.IsInitiator)
 }
 
-func (this *NoiseIKHandshake) isReadStep() bool {
+func (this *NoiseIXHandshake) isReadStep() bool {
 	return (this.handshakeStep % 2 == 1 && !this.IsInitiator) || (this.handshakeStep % 2 == 0 && this.IsInitiator)
 }
 
-func (this *NoiseIKHandshake) isFinalStep() bool {
+func (this *NoiseIXHandshake) isFinalStep() bool {
 	return this.handshakeStep == len(this.Pattern.Messages)
 }
 
-func (this *NoiseIKHandshake) stepOne() {
+func (this *NoiseIXHandshake) stepOne() {
 	if !this.isHandshakeCompleted() {
 		this.handshakeStep += 1
 	}
 }
 
-func (this *NoiseIKHandshake) handshakeDone(csenc *noise.CipherState, csdec *noise.CipherState) {
+func (this *NoiseIXHandshake) handshakeDone(csenc *noise.CipherState, csdec *noise.CipherState) {
 	this.csEnc = csenc
 	this.csDec = csdec
 }
 
-func (this *NoiseIKHandshake) Encode(b []byte) (packet []byte, err error) {
+func (this *NoiseIXHandshake) Encode(b []byte) (packet []byte, err error) {
 
 	if !this.isHandshakeCompleted() {
 		this.stepOne()
@@ -119,7 +104,7 @@ func (this *NoiseIKHandshake) Encode(b []byte) (packet []byte, err error) {
 	return
 }
 
-func (this *NoiseIKHandshake) Decode(b []byte) (packet []byte, err error) {
+func (this *NoiseIXHandshake) Decode(b []byte) (packet []byte, err error) {
 	if !this.isHandshakeCompleted() {
 		this.stepOne()
 

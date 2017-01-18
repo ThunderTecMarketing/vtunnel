@@ -117,10 +117,9 @@ func Parse(c *caddy.Controller) (m *handler, err error) {
 	}
 
 	cipherSuite := DefaultCipherSuite
-	m.NoiseIKHandshake, err = NewNoiseIKHandshake(
+	m.NoiseIKHandshake, err = NewNoiseIXHandshake(
 		cipherSuite,
 		[]byte(DefaultPrologue),
-		noise.DHKey{},
 		noise.DHKey{Public:m.PublicKey, Private:m.PrivateKey},
 		false,
 	)
