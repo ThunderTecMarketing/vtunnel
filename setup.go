@@ -9,6 +9,7 @@ import (
 	"log"
 	"os"
 	"encoding/hex"
+	"github.com/FTwOoO/noise"
 )
 
 func init() {
@@ -58,9 +59,6 @@ func Setup(c *caddy.Controller) (err error) {
 func Parse(c *caddy.Controller) (m *handler, err error) {
 	m = &handler{}
 
-	var tempkey string
-	var clientkey []byte
-
 	if c.Next() {
 		args := c.RemainingArgs()
 		switch len(args) {
@@ -73,32 +71,21 @@ func Parse(c *caddy.Controller) (m *handler, err error) {
 		for c.NextBlock() {
 			switch c.Val() {
 			case "publickey":
-				tempkey, err = StringArg(c)
-				if err == nil {
-					m.PublicKey, err = hex.DecodeString(tempkey)
-				}
-
+				m.PublicKey, err = HexKeyArg(c, KeyLength)
 			case "privatekey":
-				tempkey, err = StringArg(c)
-				if err == nil {
-					m.PrivateKey, err = hex.DecodeString(tempkey)
-				}
+				m.PrivateKey, err = HexKeyArg(c, KeyLength)
 			case "clients":
 				c.Next()
 				c.IncrNest()
+				var clientkey []byte
+
 				for c.NextBlock() {
 					switch c.Val() {
 					case "publickey":
-						tempkey, err = StringArg(c)
-						if err != nil {
-							return
-						}
-
-						clientkey, err =  hex.DecodeString(tempkey)
+						clientkey, err = HexKeyArg(c, KeyLength)
 						m.ClientPublicKeys = append(m.ClientPublicKeys, clientkey)
 					default:
 						log.Print("Error publickey now\n")
-
 						return nil, c.ArgErr()
 					}
 				}
@@ -129,14 +116,18 @@ func Parse(c *caddy.Controller) (m *handler, err error) {
 		}
 	}
 
+	cipherSuite := DefaultCipherSuite
+	m.NoiseIKHandshake, err = NewNoiseIKHandshake(
+		cipherSuite,
+		[]byte(DefaultPrologue),
+		noise.DHKey{},
+		noise.DHKey{Public:m.PublicKey, Private:m.PrivateKey},
+		false,
+	)
 	m.Fowarder, err = NewFowarder(m.Ip, m.Subnet, m.MTU)
 	return
 }
 
-
-// Helpers below here could potentially be methods on *caddy.Contoller for convenience
-
-// Assert only one arg and return it
 func StringArg(c *caddy.Controller) (string, error) {
 	args := c.RemainingArgs()
 	if len(args) != 1 {
@@ -145,7 +136,25 @@ func StringArg(c *caddy.Controller) (string, error) {
 	return args[0], nil
 }
 
-// Assert only one arg is a valid cidr notation
+func HexKeyArg(c *caddy.Controller, keylength int) (key []byte, err error) {
+	tempkey, err := StringArg(c)
+	if err != nil {
+		return
+	}
+
+	key, err = hex.DecodeString(tempkey)
+	if err != nil {
+		return
+	}
+
+	if len(key) != keylength {
+		err = ErrInValidKeyLength
+		return
+	}
+
+	return
+}
+
 func CidrArg(c *caddy.Controller) (net.IP, *net.IPNet, error) {
 	a, err := StringArg(c)
 	if err != nil {

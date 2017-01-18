@@ -8,15 +8,14 @@ import (
 	"github.com/mholt/caddy"
 	"errors"
 	"log"
-	"github.com/FTwOoO/noise"
 )
 
 func TestHandshake(t *testing.T) {
-	cs := noise.NewCipherSuite(noise.DH25519, noise.CipherAESGCM, noise.HashSHA256)
+/*	cs := noise.NewCipherSuite(noise.DH25519, noise.CipherAESGCM, noise.HashSHA256)
 	staticI := cs.GenerateKeypair(nil)
 	staticR := cs.GenerateKeypair(nil)
 
-	_, err := NewNoiseIKHandshake(
+	h1, err := NewNoiseIKHandshake(
 		cs,
 		[]byte("caddy-vpn"),
 		staticI,
@@ -27,13 +26,13 @@ func TestHandshake(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, err = NewNoiseIKHandshake(
+	h2, err = NewNoiseIKHandshake(
 		cs,
 		[]byte("caddy-vpn"),
 		noise.DHKey{},
 		staticR,
 		false,
-	)
+	)*/
 
 
 }

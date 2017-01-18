@@ -5,9 +5,13 @@ import (
 	"testing"
 	"github.com/mholt/caddy"
 	"net"
+	"encoding/hex"
 )
 
 func TestHeadersParse(t *testing.T) {
+
+	defaultHexKey := "000102030405060708090A0B0C0D0E0F101112131415161718191A1B1C1D1E1F"
+	defaultKey, _ := hex.DecodeString(defaultHexKey)
 
 	tests := []struct {
 		input     string
@@ -17,12 +21,12 @@ func TestHeadersParse(t *testing.T) {
 
 		{
 			`vpn {
-			    publickey 0001020304
-			    privatekey  0001020304
+			    publickey 000102030405060708090A0B0C0D0E0F101112131415161718191A1B1C1D1E1F
+			    privatekey  000102030405060708090A0B0C0D0E0F101112131415161718191A1B1C1D1E1F
 			    clients {
-				publickey 0001020304
-				publickey 0001020304
-				publickey 0001020304
+				publickey 000102030405060708090A0B0C0D0E0F101112131415161718191A1B1C1D1E1F
+				publickey 000102030405060708090A0B0C0D0E0F101112131415161718191A1B1C1D1E1F
+				publickey 000102030405060708090A0B0C0D0E0F101112131415161718191A1B1C1D1E1F
 			    }
 
 			    subnet 192.168.4.1/24
@@ -35,14 +39,12 @@ func TestHeadersParse(t *testing.T) {
 			false,
 			&handler{
 				Config:Config{
-					PublicKey:[]byte{
-						0x00, 0x01, 0x02, 0x03, 0x04,
-					},
-					PrivateKey:[]byte{0x00, 0x01, 0x02, 0x03, 0x04},
+					PublicKey:defaultKey,
+					PrivateKey:defaultKey,
 					ClientPublicKeys: [][]byte{
-						[]byte{0x00, 0x01, 0x02, 0x03, 0x04},
-						[]byte{0x00, 0x01, 0x02, 0x03, 0x04},
-						[]byte{0x00, 0x01, 0x02, 0x03, 0x04},
+						defaultKey,
+						defaultKey,
+						defaultKey,
 					},
 					Ip:net.IPv4(192, 168, 4, 1).To4(),
 					Subnet:&net.IPNet{IP:net.IPv4(192, 168, 4, 0).To4(), Mask: net.CIDRMask(24, 32)},

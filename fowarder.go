@@ -48,7 +48,7 @@ type Fowarder struct {
 }
 
 func NewFowarder(ip net.IP, subnet *net.IPNet, mtu uint16) (f *Fowarder, err error) {
-	id, linkEP := channel.New(256, uint32(mtu), defaultLinkAddr)
+	id, linkEP := channel.New(256, uint32(mtu), DefaultLinkAddr)
 	if false {
 		id = sniffer.New(id)
 	}
