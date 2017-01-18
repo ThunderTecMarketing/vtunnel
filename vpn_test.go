@@ -6,47 +6,43 @@ import (
 	"testing"
 	"github.com/mholt/caddy/caddyhttp/httpserver"
 	"github.com/mholt/caddy"
+	"github.com/FTwOoO/noise"
 	"errors"
 	"log"
+	"encoding/hex"
+	"bytes"
 )
 
-func TestHandshake(t *testing.T) {
-/*	cs := noise.NewCipherSuite(noise.DH25519, noise.CipherAESGCM, noise.HashSHA256)
-	staticI := cs.GenerateKeypair(nil)
-	staticR := cs.GenerateKeypair(nil)
+func getClientHandshake(ServerPublicKey []byte) (h *NoiseIKHandshake, err error) {
+	cs := noise.NewCipherSuite(noise.DH25519, noise.CipherAESGCM, noise.HashSHA256)
 
-	h1, err := NewNoiseIKHandshake(
+	publicKey, _:= hex.DecodeString("04537cd141acdc2feba13b623b2c3f6151cad48384fd6cc8065399dcdd2d257d")
+	privateKey,_:= hex.DecodeString("c0f2adf5c07b865b9b615eebafc352954ac4dd7b0d4bd55499880e3b7fd05448")
+	staticI := noise.DHKey{Public:publicKey, Private:privateKey}
+
+	h, err = NewNoiseIKHandshake(
 		cs,
-		[]byte("caddy-vpn"),
+		[]byte(DefaultPrologue),
 		staticI,
-		noise.DHKey{Public:staticR.Public},
+		noise.DHKey{Public:ServerPublicKey},
 		true,
 	)
+	return
+}
+
+
+func TestHandshake(t *testing.T) {
+	serverPublicKey, _:= hex.DecodeString("e8e394b473b7b58514404fdddc0dd237ff631ceba3c0d1eddcddecb58f5a7d2a")
+	clientHandshake, err := getClientHandshake(serverPublicKey)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	h2, err = NewNoiseIKHandshake(
-		cs,
-		[]byte("caddy-vpn"),
-		noise.DHKey{},
-		staticR,
-		false,
-	)*/
-
-
-}
-
-
-func TestVPN(t *testing.T) {
-
 	input := `vpn {
-		    publickey serverpublickey
-		    privatekey serverprivatekey
+		    publickey  e8e394b473b7b58514404fdddc0dd237ff631ceba3c0d1eddcddecb58f5a7d2a
+		    privatekey 3fbf4c6e081f845ab7998471dd4af084eea403f66a87cb5c2d775fbaa6c76eb4
 		    clients {
-			publickey client_publickey1
-			publickey client_publickey2
-			publickey client_publickey3
+			publickey 04537cd141acdc2feba13b623b2c3f6151cad48384fd6cc8065399dcdd2d257d
 		    }
 
 		    subnet 192.168.4.1/24
@@ -66,7 +62,10 @@ func TestVPN(t *testing.T) {
 		})
 
 
-	req, err := http.NewRequest("GET", "http://localhost/auth/", nil)
+	reqContent := "test"
+	encodedReqContent, err := clientHandshake.Encode([]byte(reqContent))
+
+	req, err := http.NewRequest("GET", "http://localhost/auth/", bytes.NewBuffer(encodedReqContent))
 	if err != nil {
 		t.Fatalf("Test: Could not create HTTP request: %v", err)
 	}
@@ -78,6 +77,10 @@ func TestVPN(t *testing.T) {
 		t.Errorf("Test fail: code[%d]\n", rec.Code)
 	}
 
-	log.Printf("rec.body = %v\n", rec.Body)
+	respContent := make([]byte, 1024)
+	n, err := rec.Body.Read(respContent)
+	decodedRespContent, err := clientHandshake.Decode(respContent[:n])
+
+	log.Printf("Get response = %v\n", decodedRespContent)
 
 }

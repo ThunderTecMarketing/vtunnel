@@ -17,7 +17,23 @@ func (m *handler) ServeHTTP(w http.ResponseWriter, req *http.Request) (int, erro
 	// write hello
 
 	if httpserver.Path(req.URL.Path).Matches(m.AuthPath) {
-		w.Write([]byte("Auth OK!"))
+		reqContent := make([]byte, 1024)
+		n, err := req.Body.Read(reqContent)
+		if err != nil {
+			return 403, nil
+		}
+
+		raw, err := m.NoiseIKHandshake.Decode(reqContent[:n])
+		if err != nil {
+			return 403, nil
+		}
+
+		back, err := m.NoiseIKHandshake.Encode([]byte(raw))
+		if err != nil {
+			return 403, nil
+		}
+
+		w.Write(back)
 		return 200, nil
 	}
 
