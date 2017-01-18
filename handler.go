@@ -13,24 +13,21 @@ type handler struct {
 }
 
 func (m *handler) ServeHTTP(w http.ResponseWriter, req *http.Request) (int, error) {
-	// if the request path is any of the configured paths
-	// write hello
-
 	if httpserver.Path(req.URL.Path).Matches(m.AuthPath) {
 		reqContent := make([]byte, 1024)
 		n, err := req.Body.Read(reqContent)
 		if err != nil {
-			return 403, nil
+			return 403, err
 		}
 
 		raw, err := m.NoiseIKHandshake.Decode(reqContent[:n])
 		if err != nil {
-			return 403, nil
+			return 403, err
 		}
 
 		back, err := m.NoiseIKHandshake.Encode([]byte(raw))
 		if err != nil {
-			return 403, nil
+			return 403, err
 		}
 
 		w.Write(back)

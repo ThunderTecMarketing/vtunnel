@@ -16,8 +16,8 @@ import (
 func getClientHandshake() (h *NoiseIXHandshake, err error) {
 	cs := noise.NewCipherSuite(noise.DH25519, noise.CipherAESGCM, noise.HashSHA256)
 
-	publicKey, _:= hex.DecodeString("04537cd141acdc2feba13b623b2c3f6151cad48384fd6cc8065399dcdd2d257d")
-	privateKey,_:= hex.DecodeString("c0f2adf5c07b865b9b615eebafc352954ac4dd7b0d4bd55499880e3b7fd05448")
+	publicKey, _ := hex.DecodeString("04537cd141acdc2feba13b623b2c3f6151cad48384fd6cc8065399dcdd2d257d")
+	privateKey, _ := hex.DecodeString("c0f2adf5c07b865b9b615eebafc352954ac4dd7b0d4bd55499880e3b7fd05448")
 	staticI := noise.DHKey{Public:publicKey, Private:privateKey}
 
 	h, err = NewNoiseIXHandshake(
@@ -28,7 +28,6 @@ func getClientHandshake() (h *NoiseIXHandshake, err error) {
 	)
 	return
 }
-
 
 func TestHandshake(t *testing.T) {
 	clientHandshake, err := getClientHandshake()
@@ -56,9 +55,8 @@ func TestHandshake(t *testing.T) {
 	}
 
 	h.Next = httpserver.HandlerFunc(func(w http.ResponseWriter, r *http.Request) (int, error) {
-			return 404, errors.New("404 error")
-		})
-
+		return 404, errors.New("404 error")
+	})
 
 	reqContent := []byte("test")
 	encodedReqContent, err := clientHandshake.Encode(reqContent)
@@ -72,7 +70,7 @@ func TestHandshake(t *testing.T) {
 	h.ServeHTTP(rec, req)
 
 	if rec.Code != 200 {
-		t.Errorf("Test fail: code[%d]\n", rec.Code)
+		t.Fatalf("Test fail: code[%d]\n", rec.Code)
 	}
 
 	respContent := make([]byte, 1024)
