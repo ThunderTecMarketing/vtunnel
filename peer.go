@@ -22,15 +22,34 @@ import (
 	"time"
 	"sync"
 	"github.com/FTwOoO/vpncore/net/tcpip"
+	"crypto/rand"
 )
+
+func getToken() (b []byte, err error) {
+	b = make([]byte, 16)
+	_, err = rand.Read(b)
+	return
+}
+
+type Token struct {
+	Value    []byte
+	Deadline time.Time
+}
+
+func NewToken(liveTime time.Duration) *Token {
+	randomToken, _ := getToken()
+	return &Token{Value:randomToken, Deadline:time.Now().Add(liveTime)}
+}
+
+func (t *Token) IsValid() {
+	time.Now().After(t.Deadline)
+}
 
 type Peer struct {
 	PublicKey        []byte
-	token            string
+	Token            *Token
 	Ip               net.IP
 	NoiseIKHandshake *NoiseIXHandshake
-
-	HandshakeDone    bool
 	lastSeenTime     time.Time
 }
 
@@ -76,7 +95,7 @@ func (vs *Peers) checkTimeout(timeout time.Duration) {
 	}
 }
 
-func (vs *Peers) AddPeer(publicKey []byte, handshake *NoiseIXHandshake) (peer *Peer, err error) {
+func (vs *Peers) AddPeer(publicKey []byte, handshake *NoiseIXHandshake, token *Token) (peer *Peer, err error) {
 	vs.peerLock.RLock()
 	defer vs.peerLock.RUnlock()
 
@@ -98,7 +117,7 @@ func (vs *Peers) AddPeer(publicKey []byte, handshake *NoiseIXHandshake) (peer *P
 		break
 	}
 
-	peer = &Peer{Ip:ip, PublicKey:publicKey, NoiseIKHandshake: handshake}
+	peer = &Peer{Ip:ip, PublicKey:publicKey, NoiseIKHandshake: handshake, Token:token}
 
 	vs.peerByIp[peer.Ip.String()] = peer
 	vs.peerByKey[string(publicKey)] = peer

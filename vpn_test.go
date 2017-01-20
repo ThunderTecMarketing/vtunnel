@@ -101,11 +101,11 @@ func Handshake(t *testing.T, h *handler, clientHandshake *NoiseIXHandshake, expe
 			t.Fatal(err)
 		}
 
-		_, err = clientHandshake.Decode(respContent[:n])
+		decodedRespContent, err := clientHandshake.Decode(respContent[:n])
 		if err != nil {
 			t.Fatal(err)
 		}
 
-
+		log.Printf("Got %s", decodedRespContent)
 	}
 }

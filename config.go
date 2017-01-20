@@ -30,7 +30,8 @@ var DefaultPrologue = "caddy-vpn"
 var DefaultCipherSuite = noise.NewCipherSuite(noise.DH25519, noise.CipherAESGCM, noise.HashSHA256)
 var KeyLength = noise.DH25519.DHLen()
 
-var DefaultPeerTimeout = time.Duration(10 *time.Second)
+var DefaultPeerTimeout = time.Duration(30 *time.Second)
+var DefaultTokenTimeout = time.Duration(10*time.Second)
 
 var ErrInValidHandshakeStep = errors.New("Invalid handshake step")
 var ErrInValidKeyLength = errors.New("Invalid key length")

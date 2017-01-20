@@ -45,15 +45,15 @@ func (m *handler) ServeHTTP(w http.ResponseWriter, req *http.Request) (int, erro
 			return http.StatusUnauthorized, errors.New("Invalid Key")
 		}
 
-		newPeer, err := m.Peers.AddPeer(rs, ixHandshake)
+		newPeer, err := m.Peers.AddPeer(rs, ixHandshake, NewToken(DefaultTokenTimeout))
 		if err != nil {
 			return http.StatusUnauthorized, err
 		}
 
 		maskNum, _ := m.Subnet.Mask.Size()
-		ct := fmt.Sprintf("%s/%d", newPeer.Ip.String(), maskNum)
+		clientSetting := fmt.Sprintf("ip:%s/%d mtu:%d token:%x", newPeer.Ip.String(), maskNum, m.MTU, newPeer.Token.Value)
 
-		respContent, err := ixHandshake.Encode([]byte(ct))
+		respContent, err := ixHandshake.Encode([]byte(clientSetting))
 		if err != nil {
 			return http.StatusUnauthorized, err
 		}
@@ -79,3 +79,4 @@ func (m *handler) ServeHTTP(w http.ResponseWriter, req *http.Request) (int, erro
 
 	return m.Next.ServeHTTP(w, req)
 }
+
