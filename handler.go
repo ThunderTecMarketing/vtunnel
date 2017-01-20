@@ -5,14 +5,15 @@ import (
 	"github.com/mholt/caddy/caddyhttp/httpserver"
 	"github.com/athom/goset"
 	"errors"
-
+	"github.com/FTwOoO/noise"
+	"fmt"
 )
 
 type handler struct {
 	Config
-	Next             httpserver.Handler
-	Fowarder         *Fowarder
-	NoiseIKHandshake *NoiseIXHandshake
+	Next     httpserver.Handler
+	Fowarder *Fowarder
+	Peers    *Peers
 }
 
 func (m *handler) ServeHTTP(w http.ResponseWriter, req *http.Request) (int, error) {
@@ -23,17 +24,36 @@ func (m *handler) ServeHTTP(w http.ResponseWriter, req *http.Request) (int, erro
 			return http.StatusUnauthorized, err
 		}
 
-		rawContent, err := m.NoiseIKHandshake.Decode(reqContent[:n])
+		ixHandshake, err := NewNoiseIXHandshake(
+			DefaultCipherSuite,
+			[]byte(DefaultPrologue),
+			noise.DHKey{Public:m.PublicKey, Private:m.PrivateKey},
+			false,
+		)
+
+		if n <= 0 {
+			return http.StatusBadRequest, errors.New("Need HTTP body")
+		}
+
+		_, err = ixHandshake.Decode(reqContent[:n])
 		if err != nil {
 			return http.StatusUnauthorized, err
 		}
 
-		rs := m.NoiseIKHandshake.Hs.PeerStatic()
+		rs := ixHandshake.Hs.PeerStatic()
 		if !goset.IsIncluded(m.Config.ClientPublicKeys, rs) {
 			return http.StatusUnauthorized, errors.New("Invalid Key")
 		}
 
-		respContent, err := m.NoiseIKHandshake.Encode([]byte(rawContent))
+		newPeer, err := m.Peers.AddPeer(rs, ixHandshake)
+		if err != nil {
+			return http.StatusUnauthorized, err
+		}
+
+		maskNum, _ := m.Subnet.Mask.Size()
+		ct := fmt.Sprintf("%s/%d", newPeer.Ip.String(), maskNum)
+
+		respContent, err := ixHandshake.Encode([]byte(ct))
 		if err != nil {
 			return http.StatusUnauthorized, err
 		}

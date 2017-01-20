@@ -22,6 +22,7 @@ import (
 	"github.com/FTwOoO/netstack/tcpip"
 	"errors"
 	"github.com/FTwOoO/noise"
+	"time"
 )
 
 var DefaultLinkAddr = tcpip.LinkAddress("\x0a\x0a\x0b\x0b\x0c\x0c")
@@ -29,8 +30,11 @@ var DefaultPrologue = "caddy-vpn"
 var DefaultCipherSuite = noise.NewCipherSuite(noise.DH25519, noise.CipherAESGCM, noise.HashSHA256)
 var KeyLength = noise.DH25519.DHLen()
 
+var DefaultPeerTimeout = time.Duration(10 *time.Second)
+
 var ErrInValidHandshakeStep = errors.New("Invalid handshake step")
 var ErrInValidKeyLength = errors.New("Invalid key length")
+var ErrPeerAlreadyExist = errors.New("peer exists")
 
 type Config struct {
 	PublicKey        []byte

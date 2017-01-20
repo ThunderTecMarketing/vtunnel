@@ -9,7 +9,6 @@ import (
 	"log"
 	"os"
 	"encoding/hex"
-	"github.com/FTwOoO/noise"
 )
 
 func init() {
@@ -116,13 +115,7 @@ func Parse(c *caddy.Controller) (m *handler, err error) {
 		}
 	}
 
-	cipherSuite := DefaultCipherSuite
-	m.NoiseIKHandshake, err = NewNoiseIXHandshake(
-		cipherSuite,
-		[]byte(DefaultPrologue),
-		noise.DHKey{Public:m.PublicKey, Private:m.PrivateKey},
-		false,
-	)
+	m.Peers = NewPeers(&m.Config)
 	m.Fowarder, err = NewFowarder(m.Ip, m.Subnet, m.MTU)
 	return
 }
