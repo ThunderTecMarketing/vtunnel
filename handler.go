@@ -3,6 +3,9 @@ package vpn
 import (
 	"net/http"
 	"github.com/mholt/caddy/caddyhttp/httpserver"
+	"github.com/athom/goset"
+	"errors"
+
 )
 
 type handler struct {
@@ -17,21 +20,26 @@ func (m *handler) ServeHTTP(w http.ResponseWriter, req *http.Request) (int, erro
 		reqContent := make([]byte, 1024)
 		n, err := req.Body.Read(reqContent)
 		if err != nil {
-			return 403, err
+			return http.StatusUnauthorized, err
 		}
 
-		raw, err := m.NoiseIKHandshake.Decode(reqContent[:n])
+		rawContent, err := m.NoiseIKHandshake.Decode(reqContent[:n])
 		if err != nil {
-			return 403, err
+			return http.StatusUnauthorized, err
 		}
 
-		back, err := m.NoiseIKHandshake.Encode([]byte(raw))
+		rs := m.NoiseIKHandshake.Hs.PeerStatic()
+		if !goset.IsIncluded(m.Config.ClientPublicKeys, rs) {
+			return http.StatusUnauthorized, errors.New("Invalid Key")
+		}
+
+		respContent, err := m.NoiseIKHandshake.Encode([]byte(rawContent))
 		if err != nil {
-			return 403, err
+			return http.StatusUnauthorized, err
 		}
 
-		w.Write(back)
-		return 200, nil
+		w.Write(respContent)
+		return http.StatusOK, nil
 	}
 
 	if httpserver.Path(req.URL.Path).Matches(m.PacketPath) {
@@ -46,7 +54,7 @@ func (m *handler) ServeHTTP(w http.ResponseWriter, req *http.Request) (int, erro
 			w.Write([]byte{})
 		}
 
-		return 200, nil
+		return http.StatusOK, nil
 	}
 
 	return m.Next.ServeHTTP(w, req)

@@ -8,7 +8,6 @@ import (
 	"github.com/mholt/caddy"
 	"github.com/FTwOoO/noise"
 	"errors"
-	"log"
 	"encoding/hex"
 	"bytes"
 )
@@ -55,7 +54,7 @@ func TestHandshake(t *testing.T) {
 	}
 
 	h.Next = httpserver.HandlerFunc(func(w http.ResponseWriter, r *http.Request) (int, error) {
-		return 404, errors.New("404 error")
+		return http.StatusNotFound, errors.New("404 error")
 	})
 
 	reqContent := []byte("test")
@@ -63,23 +62,32 @@ func TestHandshake(t *testing.T) {
 
 	req, err := http.NewRequest("GET", "http://localhost/auth/", bytes.NewBuffer(encodedReqContent))
 	if err != nil {
-		t.Fatalf("Test: Could not create HTTP request: %v", err)
+		t.Fatalf("Could not create HTTP request: %v", err)
 	}
 
 	rec := httptest.NewRecorder()
-	h.ServeHTTP(rec, req)
+	statusCode, err := h.ServeHTTP(rec, req)
+	if err != nil {
+		t.Fatal(err)
+	}
 
-	if rec.Code != 200 {
-		t.Fatalf("Test fail: code[%d]\n", rec.Code)
+	if statusCode != http.StatusOK {
+		t.Fatalf("Code [%d]\n", statusCode)
 	}
 
 	respContent := make([]byte, 1024)
 	n, err := rec.Body.Read(respContent)
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	decodedRespContent, err := clientHandshake.Decode(respContent[:n])
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	if !bytes.Equal(reqContent, decodedRespContent) {
-		t.Fatal()
+		t.Fatalf("Auth content is not equal: resq[%s] resp[%s]!", reqContent, decodedRespContent)
 	}
-	log.Printf("Get response = %v\n", decodedRespContent)
 
 }
