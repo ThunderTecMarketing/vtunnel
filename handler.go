@@ -52,7 +52,7 @@ func (m *handler) ServeHTTP(w http.ResponseWriter, req *http.Request) (int, erro
 			return http.StatusUnauthorized, err
 		}
 
-		clientSetting:=ClientSetting{Ip:peer.Ip, Subnet:m.Subnet, Mtu:m.MTU, Token:peer.Token.Value}
+		clientSetting := ClientSetting{Ip:peer.Ip, Subnet:m.Subnet, Mtu:m.MTU, Token:peer.Token.Value}
 		respContent, err := ixHandshake.Encode([]byte(clientSetting.Encode()))
 		if err != nil {
 			return http.StatusUnauthorized, err
@@ -88,7 +88,9 @@ func (m *handler) ServeHTTP(w http.ResponseWriter, req *http.Request) (int, erro
 
 		newPacket := make([]byte, m.Config.MTU)
 		n, err := req.Body.Read(newPacket)
+
 		if err == nil {
+
 			m.Fowarder.Send(newPacket[:n])
 		}
 

@@ -23,7 +23,6 @@ var invalidClientPrivateKey = "d15fde7c16da6364374e8cc96f934c13de5b686aa0ad005e5
 var serverPublicKey = "e8e394b473b7b58514404fdddc0dd237ff631ceba3c0d1eddcddecb58f5a7d2a"
 var serverPrivateKey = "3fbf4c6e081f845ab7998471dd4af084eea403f66a87cb5c2d775fbaa6c76eb4"
 
-
 func getClientHandshake(pub string, pri string) (h *NoiseIXHandshake, err error) {
 	cs := noise.NewCipherSuite(noise.DH25519, noise.CipherAESGCM, noise.HashSHA256)
 	publicKey, _ := hex.DecodeString(pub)
@@ -64,26 +63,28 @@ func TestHandshake(t *testing.T) {
 		return http.StatusNotFound, errors.New("404 error")
 	})
 
-	validH, err := getClientHandshake(validClientPublicKey, validClientPrivateKey)
+	validHs, err := getClientHandshake(validClientPublicKey, validClientPrivateKey)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	invalidH, err := getClientHandshake(invalidClientPublicKey, invalidClientPrivateKey)
+	invalidHs, err := getClientHandshake(invalidClientPublicKey, invalidClientPrivateKey)
 	if err != nil {
 		t.Fatal(err)
 	}
 
+	cliSetting := SendHandshake(t, h, validHs, http.StatusOK)
+	SendHandshake(t, h, invalidHs, http.StatusUnauthorized)
 
-	Handshake(t, h, validH, http.StatusOK)
-	Handshake(t, h, invalidH, http.StatusUnauthorized)
+	SendData(t, h, validHs, nil, http.StatusUnauthorized)
+	SendData(t, h, validHs, cliSetting, http.StatusOK)
 }
 
-func Handshake(t *testing.T, h *handler, clientHandshake *NoiseIXHandshake, expectedCode int) {
-	reqContent := []byte("test")
+func SendHandshake(t *testing.T, h *handler, clientHandshake *NoiseIXHandshake, expectedCode int) *ClientSetting {
+	reqContent := []byte{}
 	encodedReqContent, err := clientHandshake.Encode(reqContent)
 
-	req, err := http.NewRequest("GET", "http://localhost/auth/", bytes.NewBuffer(encodedReqContent))
+	req, err := http.NewRequest("POST", "http://localhost/auth/", bytes.NewBuffer(encodedReqContent))
 	if err != nil {
 		t.Fatalf("Could not create HTTP request: %v", err)
 	}
@@ -110,6 +111,30 @@ func Handshake(t *testing.T, h *handler, clientHandshake *NoiseIXHandshake, expe
 		if err != nil {
 			t.Fatal(err)
 		}
-		log.Printf("Got %v", cliSetting.Encode())
+		log.Printf("Got auth response:%v", cliSetting.Encode())
+		return cliSetting
 	}
+
+	return nil
+}
+
+func SendData(t *testing.T, h *handler, clientHandshake *NoiseIXHandshake, clientSetting *ClientSetting, expectedCode int) {
+	reqContent := []byte{}
+	encodedReqContent, err := clientHandshake.Encode(reqContent)
+
+	req, err := http.NewRequest("POST", "http://localhost/packet/", bytes.NewBuffer(encodedReqContent))
+	if err != nil {
+		t.Fatalf("Could not create HTTP request: %v", err)
+	}
+
+	if clientSetting != nil {
+		req.SetBasicAuth(clientSetting.Ip.String(), hex.EncodeToString(clientSetting.Token))
+	}
+
+	rec := httptest.NewRecorder()
+	statusCode, err := h.ServeHTTP(rec, req)
+	if statusCode != expectedCode {
+		t.Fatalf("Code [%d] not expected[%d]\n", statusCode, expectedCode)
+	}
+
 }
