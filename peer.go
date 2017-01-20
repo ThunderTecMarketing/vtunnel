@@ -77,6 +77,9 @@ func (vs *Peers) checkTimeout(timeout time.Duration) {
 }
 
 func (vs *Peers) AddPeer(publicKey []byte, handshake *NoiseIXHandshake) (peer *Peer, err error) {
+	vs.peerLock.RLock()
+	defer vs.peerLock.RUnlock()
+
 	if _, ok := vs.peerByKey[string(publicKey)]; ok {
 		return nil, ErrPeerAlreadyExist
 	}
@@ -97,10 +100,8 @@ func (vs *Peers) AddPeer(publicKey []byte, handshake *NoiseIXHandshake) (peer *P
 
 	peer = &Peer{Ip:ip, PublicKey:publicKey, NoiseIKHandshake: handshake}
 
-	vs.peerLock.Lock()
 	vs.peerByIp[peer.Ip.String()] = peer
 	vs.peerByKey[string(publicKey)] = peer
-	vs.peerLock.Unlock()
 	return
 }
 
