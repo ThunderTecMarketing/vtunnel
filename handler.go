@@ -6,7 +6,9 @@ import (
 	"github.com/athom/goset"
 	"errors"
 	"github.com/FTwOoO/noise"
-	"fmt"
+	"net"
+	"encoding/hex"
+	"bytes"
 )
 
 type handler struct {
@@ -45,15 +47,13 @@ func (m *handler) ServeHTTP(w http.ResponseWriter, req *http.Request) (int, erro
 			return http.StatusUnauthorized, errors.New("Invalid Key")
 		}
 
-		newPeer, err := m.Peers.AddPeer(rs, ixHandshake, NewToken(DefaultTokenTimeout))
+		peer, err := m.Peers.AddPeer(rs, ixHandshake, NewToken(DefaultTokenTimeout))
 		if err != nil {
 			return http.StatusUnauthorized, err
 		}
 
-		maskNum, _ := m.Subnet.Mask.Size()
-		clientSetting := fmt.Sprintf("ip:%s/%d mtu:%d token:%x", newPeer.Ip.String(), maskNum, m.MTU, newPeer.Token.Value)
-
-		respContent, err := ixHandshake.Encode([]byte(clientSetting))
+		clientSetting:=ClientSetting{Ip:peer.Ip, Subnet:m.Subnet, Mtu:m.MTU, Token:peer.Token.Value}
+		respContent, err := ixHandshake.Encode([]byte(clientSetting.Encode()))
 		if err != nil {
 			return http.StatusUnauthorized, err
 		}
@@ -63,6 +63,29 @@ func (m *handler) ServeHTTP(w http.ResponseWriter, req *http.Request) (int, erro
 	}
 
 	if httpserver.Path(req.URL.Path).Matches(m.PacketPath) {
+		ipS, tokenV, ok := req.BasicAuth()
+		if !ok {
+			w.Header().Set("WWW-Authenticate", "Basic realm=\"Restricted\"")
+			return http.StatusUnauthorized, nil
+		}
+
+		// remove credentials from request to avoid leaking upstream
+		req.Header.Del("Authorization")
+
+		ip := net.ParseIP(ipS)
+		if ip == nil {
+			return http.StatusUnauthorized, errors.New("Ip format error")
+		}
+
+		token, err := hex.DecodeString(tokenV)
+		if err != nil {
+			return http.StatusUnauthorized, err
+		}
+
+		if peer := m.Peers.GetPeerByIp(ip); peer == nil || !peer.IsValid() || !bytes.Equal(peer.Token.Value, token) {
+			return http.StatusUnauthorized, errors.New("Invalid token or peer ")
+		}
+
 		newPacket := make([]byte, m.Config.MTU)
 		n, err := req.Body.Read(newPacket)
 		if err == nil {

@@ -11,6 +11,7 @@ import (
 	"encoding/hex"
 	"bytes"
 	"fmt"
+	"log"
 )
 
 var validClientPublicKey = "e01ee3207ea15d346c362b7e20cef3a1088ec0a11a1141b3584ed44e2bb69531"
@@ -76,7 +77,6 @@ func TestHandshake(t *testing.T) {
 
 	Handshake(t, h, validH, http.StatusOK)
 	Handshake(t, h, invalidH, http.StatusUnauthorized)
-
 }
 
 func Handshake(t *testing.T, h *handler, clientHandshake *NoiseIXHandshake, expectedCode int) {
@@ -106,6 +106,10 @@ func Handshake(t *testing.T, h *handler, clientHandshake *NoiseIXHandshake, expe
 			t.Fatal(err)
 		}
 
-		log.Printf("Got %s", decodedRespContent)
+		cliSetting, err := DecodeClientSetting(string(decodedRespContent))
+		if err != nil {
+			t.Fatal(err)
+		}
+		log.Printf("Got %v", cliSetting.Encode())
 	}
 }

@@ -41,8 +41,8 @@ func NewToken(liveTime time.Duration) *Token {
 	return &Token{Value:randomToken, Deadline:time.Now().Add(liveTime)}
 }
 
-func (t *Token) IsValid() {
-	time.Now().After(t.Deadline)
+func (t *Token) IsValid() bool {
+	return time.Now().Before(t.Deadline)
 }
 
 type Peer struct {
@@ -50,17 +50,15 @@ type Peer struct {
 	Token            *Token
 	Ip               net.IP
 	NoiseIKHandshake *NoiseIXHandshake
-	lastSeenTime     time.Time
 }
 
-func (peer *Peer) Touch() {
-	peer.lastSeenTime = time.Now()
+func (peer *Peer) IsValid() bool {
+	return peer.Token.IsValid()
 }
 
 type Peers struct {
 	config      *Config
-	MyIp        net.IP
-	IpPool      *tcpip.IP4Pool
+	ipPool      *tcpip.IP4Pool
 
 	PeerTimeout chan *Peer
 
@@ -72,12 +70,10 @@ type Peers struct {
 func NewPeers(config *Config) (vs *Peers) {
 	vs = new(Peers)
 	vs.config = config
-	vs.IpPool, _ = tcpip.NewIP4Pool(config.Subnet)
-	vs.MyIp = config.Ip
+	vs.ipPool, _ = tcpip.NewIP4Pool(config.Subnet)
 
 	vs.peerByIp = map[string]*Peer{}
 	vs.peerByKey = map[string]*Peer{}
-	vs.PeerTimeout = make(chan *Peer, 100)
 
 	go vs.checkTimeout(DefaultPeerTimeout)
 	return
@@ -88,8 +84,7 @@ func (vs *Peers) checkTimeout(timeout time.Duration) {
 	defer vs.peerLock.RUnlock()
 
 	for _, peer := range vs.peerByIp {
-		conntime := time.Since(peer.lastSeenTime)
-		if conntime > timeout {
+		if !peer.IsValid() {
 			vs.PeerTimeout <- peer
 		}
 	}
@@ -99,28 +94,32 @@ func (vs *Peers) AddPeer(publicKey []byte, handshake *NoiseIXHandshake, token *T
 	vs.peerLock.RLock()
 	defer vs.peerLock.RUnlock()
 
-	if _, ok := vs.peerByKey[string(publicKey)]; ok {
-		return nil, ErrPeerAlreadyExist
-	}
+	peer = vs.GetPeerByKey(publicKey)
 
-	var ip net.IP
-	for {
-		ip, err = vs.IpPool.Next()
-		if err != nil {
-			return
+	if peer == nil {
+		var ip net.IP
+		for {
+			ip, err = vs.ipPool.Next()
+			if err != nil {
+				return
+			}
+
+			if ip.Equal(vs.config.Ip) {
+				continue
+			}
+
+			break
 		}
 
-		if ip.Equal(vs.MyIp) {
-			continue
-		}
+		peer = &Peer{Ip:ip, PublicKey:publicKey, NoiseIKHandshake: handshake, Token:token}
+		vs.peerByIp[peer.Ip.String()] = peer
+		vs.peerByKey[string(publicKey)] = peer
+	} else {
+		peer.NoiseIKHandshake = handshake
+		peer.Token = token
 
-		break
 	}
 
-	peer = &Peer{Ip:ip, PublicKey:publicKey, NoiseIKHandshake: handshake, Token:token}
-
-	vs.peerByIp[peer.Ip.String()] = peer
-	vs.peerByKey[string(publicKey)] = peer
 	return
 }
 
@@ -128,7 +127,7 @@ func (vs *Peers) DeletePeer(peer *Peer) {
 	vs.peerLock.RLock()
 	defer vs.peerLock.RUnlock()
 
-	vs.IpPool.Release(peer.Ip)
+	vs.ipPool.Release(peer.Ip)
 	delete(vs.peerByIp, peer.Ip.String())
 	delete(vs.peerByKey, string(peer.PublicKey))
 
@@ -138,12 +137,20 @@ func (vs *Peers) GetPeerByIp(ip net.IP) (*Peer) {
 	vs.peerLock.RLock()
 	defer vs.peerLock.RUnlock()
 
-	return vs.peerByIp[ip.String()]
+	if peer, ok := vs.peerByIp[ip.String()]; ok {
+		return peer
+	}
+
+	return nil
 }
 
-func (vs *Peers) GetPeerById(id []byte) (*Peer) {
+func (vs *Peers) GetPeerByKey(id []byte) (*Peer) {
 	vs.peerLock.RLock()
 	defer vs.peerLock.RUnlock()
 
-	return vs.peerByKey[string(id)]
+	if peer, ok := vs.peerByKey[string(id)]; ok {
+		return peer
+	}
+
+	return nil
 }
