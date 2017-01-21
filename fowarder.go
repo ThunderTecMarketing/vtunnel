@@ -20,16 +20,20 @@ package vpn
 import (
 	"github.com/FTwOoO/go-tun2io/tun2io"
 	"github.com/FTwOoO/netstack/tcpip"
-	"github.com/FTwOoO/netstack/tcpip/link/channel"
 	"github.com/FTwOoO/netstack/tcpip/link/sniffer"
 	"github.com/FTwOoO/netstack/tcpip/buffer"
-	"github.com/FTwOoO/netstack/tcpip/network/ipv4"
 	"net"
 	"sync"
 	"context"
+	"github.com/FTwOoO/netstack/tcpip/network/ipv4"
+	"github.com/FTwOoO/netstack/tcpip/header"
+	"log"
+	"github.com/FTwOoO/netstack/tcpip/link/channel"
 )
 
 type Fowarder struct {
+	ip          net.IP
+	subnet      *net.IPNet
 	linkEP      *channel.Endpoint
 	tun2ioM     *tun2io.Tun2ioManager
 	stack       tcpip.Stack
@@ -39,7 +43,7 @@ type Fowarder struct {
 	writeChan   chan buffer.View
 
 	readViewsMu sync.Mutex
-	readViews   []buffer.View
+	readViews   map[string][]buffer.View
 
 	ctx         context.Context
 	ctxCancel   context.CancelFunc
@@ -59,10 +63,13 @@ func NewFowarder(ip net.IP, subnet *net.IPNet, mtu uint16) (f *Fowarder, err err
 	}
 
 	f = &Fowarder{
+		ip:ip,
+		subnet:subnet,
 		tun2ioM:tun2ioM,
 		stack:tun2ioM.GetStack(),
 		linkEP:linkEP,
 		writeChan:make(chan buffer.View, 1024),
+		readViews:make(map[string][]buffer.View),
 	}
 
 	f.ctx, f.ctxCancel = context.WithCancel(context.Background())
@@ -73,16 +80,61 @@ func NewFowarder(ip net.IP, subnet *net.IPNet, mtu uint16) (f *Fowarder, err err
 }
 
 func (f *Fowarder) writer() {
+	ipv4Proto := ipv4.NewProtocol()
+	//ipv6Proto := ipv6.NewProtocol()
+
+	Writing:
 	for {
 		select {
 		case b := <-f.writeChan:
-			views := []buffer.View{b}
-			vv := buffer.NewVectorisedView(len(b), views)
-			f.linkEP.Inject(ipv4.ProtocolNumber, &vv)
+
+			switch header.IPVersion(b) {
+			case header.IPv4Version:
+				src, dst := ipv4Proto.ParseAddresses(b)
+				srcIP := net.ParseIP(src.String())
+				dstIp := net.ParseIP(dst.String())
+
+				if !f.subnet.Contains(srcIP) {
+					log.Printf("Ip src not allowed: %s", srcIP.String())
+					continue Writing
+				}
+
+				if f.subnet.Contains(dstIp) && !dstIp.Equal(f.ip) {
+					f.pushPacketToTarget(b, dstIp)
+					continue Writing
+				}
+
+				views := []buffer.View{b}
+				vv := buffer.NewVectorisedView(len(b), views)
+
+				f.linkEP.Inject(header.IPv4ProtocolNumber, &vv)
+
+			case header.IPv6Version:
+				//TODO: support ipv6...
+				continue Writing
+			default:
+				log.Printf("Bad ip packet %x\n", b)
+				continue Writing
+			}
+
+
+
 		case <-f.ctx.Done():
 			return
 		}
 	}
+}
+
+func (f *Fowarder) pushPacketToTarget(b []byte, dst net.IP) {
+	f.readViewsMu.Lock()
+	key := dst.String()
+
+	if _, ok := f.readViews[key]; !ok {
+		f.readViews[key] = []buffer.View{}
+	}
+
+	f.readViews[key] = append(f.readViews[key], b)
+	f.readViewsMu.Unlock()
 }
 
 func (f *Fowarder) reader() {
@@ -90,10 +142,11 @@ func (f *Fowarder) reader() {
 	for {
 		select {
 		case p := <-f.linkEP.C:
-			f.readViewsMu.Lock()
-			newPacket:= append([]byte(p.Header), []byte(p.Payload)...)
-			f.readViews = append(f.readViews, newPacket)
-			f.readViewsMu.Unlock()
+			newPacket := append([]byte(p.Header), []byte(p.Payload)...)
+
+			targetIp := net.ParseIP(p.Route.RemoteAddress)
+			f.pushPacketToTarget(newPacket, targetIp)
+
 		case <-f.ctx.Done():
 			return
 		}
@@ -105,18 +158,31 @@ func (f *Fowarder) Send(b buffer.View) {
 	f.writeChan <- buffer.View(b)
 }
 
-func (f *Fowarder) Recv() ([]buffer.View) {
+func (f *Fowarder) Recv(dst net.IP) ([]buffer.View) {
 
 	f.readViewsMu.Lock()
 	defer f.readViewsMu.Unlock()
 
+	ip := dst.String()
+
+	if _, ok := f.readViews[ip]; !ok || len(f.readViews) <= 0 {
+		return nil
+	}
+
 	if len(f.readViews) > 0 {
-		ret := f.readViews
+		ret := f.readViews[ip]
 		f.readViews = []buffer.View{}
 		return ret
 	}
 
 	return nil
+}
+
+func (f *Fowarder) DeleteTarget(dst net.IP) {
+	f.readViewsMu.Lock()
+	defer f.readViewsMu.Unlock()
+
+	delete(f.readViews, dst.String())
 }
 
 func (f *Fowarder) Close(reason error) {

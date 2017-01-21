@@ -65,13 +65,14 @@ type Peers struct {
 	peerByIp    map[string]*Peer
 	peerByKey   map[string]*Peer
 	peerLock    sync.RWMutex
+	deleteCallback func (*Peer)
 }
 
-func NewPeers(config *Config) (vs *Peers) {
+func NewPeers(config *Config, deleteCallback func (*Peer)) (vs *Peers) {
 	vs = new(Peers)
 	vs.config = config
 	vs.ipPool, _ = tcpip.NewIP4Pool(config.Subnet)
-
+	vs.deleteCallback = deleteCallback
 	vs.peerByIp = map[string]*Peer{}
 	vs.peerByKey = map[string]*Peer{}
 
@@ -130,6 +131,7 @@ func (vs *Peers) DeletePeer(peer *Peer) {
 	vs.ipPool.Release(peer.Ip)
 	delete(vs.peerByIp, peer.Ip.String())
 	delete(vs.peerByKey, string(peer.PublicKey))
+	vs.deleteCallback(peer)
 
 }
 

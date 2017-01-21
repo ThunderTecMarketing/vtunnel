@@ -82,7 +82,8 @@ func (m *handler) ServeHTTP(w http.ResponseWriter, req *http.Request) (int, erro
 			return http.StatusUnauthorized, err
 		}
 
-		if peer := m.Peers.GetPeerByIp(ip); peer == nil || !peer.IsValid() || !bytes.Equal(peer.Token.Value, token) {
+		var peer *Peer
+		if peer = m.Peers.GetPeerByIp(ip); peer == nil || !peer.IsValid() || !bytes.Equal(peer.Token.Value, token) {
 			return http.StatusUnauthorized, errors.New("Invalid token or peer ")
 		}
 
@@ -96,7 +97,7 @@ func (m *handler) ServeHTTP(w http.ResponseWriter, req *http.Request) (int, erro
 		}
 
 		//TODO: limit the num of packets per resp
-		packetsToWrite := m.Fowarder.Recv()
+		packetsToWrite := m.Fowarder.Recv(peer.Ip)
 		if len(packetsToWrite) > 0 {
 			err = WritePackets(w, packetsToWrite)
 			if err != nil {
@@ -110,3 +111,7 @@ func (m *handler) ServeHTTP(w http.ResponseWriter, req *http.Request) (int, erro
 	return m.Next.ServeHTTP(w, req)
 }
 
+
+func (m *handler) DeletePeer(peer *Peer) {
+	m.Fowarder.DeleteTarget(peer.Ip)
+}

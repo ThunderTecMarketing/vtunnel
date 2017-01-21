@@ -115,7 +115,7 @@ func Parse(c *caddy.Controller) (m *handler, err error) {
 		}
 	}
 
-	m.Peers = NewPeers(&m.Config)
+	m.Peers = NewPeers(&m.Config, m.DeletePeer)
 	m.Fowarder, err = NewFowarder(m.Ip, m.Subnet, m.MTU)
 	return
 }
