@@ -39,7 +39,8 @@ var DefaultTokenTimeout = time.Duration(10 * time.Second)
 
 var ErrInValidHandshakeStep = errors.New("Invalid handshake step")
 var ErrInValidKeyLength = errors.New("Invalid key length")
-var ErrPeerAlreadyExist = errors.New("peer exists")
+var ErrPeerAlreadyExist = errors.New("Peer exists")
+var ErrPacketLengthInvalid = errors.New("Packet length is not in (0,MTU]")
 
 type Config struct {
 	PublicKey        []byte

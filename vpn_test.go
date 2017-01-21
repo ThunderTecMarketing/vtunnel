@@ -12,6 +12,11 @@ import (
 	"bytes"
 	"fmt"
 	"log"
+	"github.com/google/gopacket"
+	"github.com/google/gopacket/layers"
+	"math/rand"
+	"net"
+	"github.com/FTwOoO/netstack/tcpip/buffer"
 )
 
 var validClientPublicKey = "e01ee3207ea15d346c362b7e20cef3a1088ec0a11a1141b3584ed44e2bb69531"
@@ -119,10 +124,11 @@ func SendHandshake(t *testing.T, h *handler, clientHandshake *NoiseIXHandshake, 
 }
 
 func SendData(t *testing.T, h *handler, clientHandshake *NoiseIXHandshake, clientSetting *ClientSetting, expectedCode int) {
-	reqContent := []byte{}
-	encodedReqContent, err := clientHandshake.Encode(reqContent)
+	buf := bytes.NewBuffer([]byte{})
+	packet := createFakeIPPacket(net.IP{192,168,4,1})
+	WritePackets(buf, []buffer.View{packet})
 
-	req, err := http.NewRequest("POST", "http://localhost/packet/", bytes.NewBuffer(encodedReqContent))
+	req, err := http.NewRequest("POST", "http://localhost/packet/", buf)
 	if err != nil {
 		t.Fatalf("Could not create HTTP request: %v", err)
 	}
@@ -134,7 +140,23 @@ func SendData(t *testing.T, h *handler, clientHandshake *NoiseIXHandshake, clien
 	rec := httptest.NewRecorder()
 	statusCode, err := h.ServeHTTP(rec, req)
 	if statusCode != expectedCode {
+		if err != nil {
+			t.Fatal(err.Error())
+		}
 		t.Fatalf("Code [%d] not expected[%d]\n", statusCode, expectedCode)
 	}
 
+}
+
+
+func createFakeIPPacket(src net.IP) []byte {
+	buf := gopacket.NewSerializeBuffer()
+	opts := gopacket.SerializeOptions{FixLengths:true}
+	gopacket.SerializeLayers(buf, opts,
+		&layers.IPv4{SrcIP:src, DstIP:net.IPv4(8,8,8,8), Protocol:layers.IPProtocolICMPv4},
+		&layers.ICMPv4{Id:uint16(rand.Int31())},
+	)
+
+	packetData := buf.Bytes()
+	return packetData
 }

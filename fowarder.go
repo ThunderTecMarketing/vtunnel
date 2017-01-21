@@ -27,7 +27,6 @@ import (
 	"net"
 	"sync"
 	"context"
-	"errors"
 )
 
 type Fowarder struct {
@@ -106,7 +105,7 @@ func (f *Fowarder) Send(b buffer.View) {
 	f.writeChan <- buffer.View(b)
 }
 
-func (f *Fowarder) Recv() ([]buffer.View, error) {
+func (f *Fowarder) Recv() ([]buffer.View) {
 
 	f.readViewsMu.Lock()
 	defer f.readViewsMu.Unlock()
@@ -114,10 +113,10 @@ func (f *Fowarder) Recv() ([]buffer.View, error) {
 	if len(f.readViews) > 0 {
 		ret := f.readViews
 		f.readViews = []buffer.View{}
-		return ret, nil
+		return ret
 	}
 
-	return nil, errors.New("???")
+	return nil
 }
 
 func (f *Fowarder) Close(reason error) {

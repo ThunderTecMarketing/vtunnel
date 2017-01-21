@@ -3,9 +3,9 @@ package vpn
 import (
 	"net/http"
 	"github.com/mholt/caddy/caddyhttp/httpserver"
+	"github.com/FTwOoO/noise"
 	"github.com/athom/goset"
 	"errors"
-	"github.com/FTwOoO/noise"
 	"net"
 	"encoding/hex"
 	"bytes"
@@ -86,17 +86,22 @@ func (m *handler) ServeHTTP(w http.ResponseWriter, req *http.Request) (int, erro
 			return http.StatusUnauthorized, errors.New("Invalid token or peer ")
 		}
 
-		newPacket := make([]byte, m.Config.MTU)
-		n, err := req.Body.Read(newPacket)
-
-		if err == nil {
-
-			m.Fowarder.Send(newPacket[:n])
+		packets, err := ReadPackets(req.Body)
+		if err != nil {
+			return http.StatusBadRequest, err
 		}
 
-		_, err = m.Fowarder.Recv()
-		if err != nil {
-			w.Write([]byte{})
+		for _, packet := range packets {
+			m.Fowarder.Send(packet)
+		}
+
+		//TODO: limit the num of packets per resp
+		packetsToWrite := m.Fowarder.Recv()
+		if len(packetsToWrite) > 0 {
+			err = WritePackets(w, packetsToWrite)
+			if err != nil {
+				return http.StatusInternalServerError, err
+			}
 		}
 
 		return http.StatusOK, nil
