@@ -26,13 +26,13 @@ import (
 
 var DefaultMTU = 1400
 
-func ReadPackets(body io.ReadCloser) (packets []buffer.View, err error) {
+func ReadPackets(r io.Reader) (packets []buffer.View, err error) {
 
 	buf1 := make([]byte, 2)
 	buf2 := make([]byte, DefaultMTU)
 
 	for {
-		if _, err = io.ReadFull(body, buf1); err != nil {
+		if _, err = io.ReadFull(r, buf1); err != nil {
 			//nothing to read
 			if err == io.EOF {
 				err = nil
@@ -48,7 +48,7 @@ func ReadPackets(body io.ReadCloser) (packets []buffer.View, err error) {
 			return nil, ErrPacketLengthInvalid
 		}
 
-		if _, err = io.ReadFull(body, buf2[:packetLength]); err != nil {
+		if _, err = io.ReadFull(r, buf2[:packetLength]); err != nil {
 			return nil, err
 		}
 
