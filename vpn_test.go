@@ -81,8 +81,8 @@ func TestHandshake(t *testing.T) {
 	cliSetting := SendHandshake(t, h, validHs, http.StatusOK)
 	SendHandshake(t, h, invalidHs, http.StatusUnauthorized)
 
-	SendData(t, h, validHs, nil, http.StatusUnauthorized)
-	SendData(t, h, validHs, cliSetting, http.StatusOK)
+	SendData(t, h, nil, http.StatusUnauthorized)
+	SendData(t, h, cliSetting, http.StatusOK)
 }
 
 func SendHandshake(t *testing.T, h *handler, clientHandshake *NoiseIXHandshake, expectedCode int) *ClientSetting {
@@ -123,7 +123,7 @@ func SendHandshake(t *testing.T, h *handler, clientHandshake *NoiseIXHandshake, 
 	return nil
 }
 
-func SendData(t *testing.T, h *handler, clientHandshake *NoiseIXHandshake, clientSetting *ClientSetting, expectedCode int) {
+func SendData(t *testing.T, h *handler, clientSetting *ClientSetting, expectedCode int) {
 	buf := bytes.NewBuffer([]byte{})
 	packet := createFakeIPPacket(net.IP{192,168,4,1})
 	WritePackets(buf, []buffer.View{packet})
