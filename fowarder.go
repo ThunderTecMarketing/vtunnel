@@ -40,10 +40,10 @@ type Fowarder struct {
 	//defaultDialer proxy.Dialer
 	//dnsServ       *tun2io.DnsServer
 
-	writeChan   chan buffer.View
+	sendChan    chan buffer.View
 
-	readViewsMu sync.Mutex
-	readViews   map[string][]buffer.View
+	recvViewsMu sync.Mutex
+	recvViews   map[string][]buffer.View
 
 	ctx         context.Context
 	ctxCancel   context.CancelFunc
@@ -68,8 +68,8 @@ func NewFowarder(ip net.IP, subnet *net.IPNet, mtu uint16) (f *Fowarder, err err
 		tun2ioM:tun2ioM,
 		stack:tun2ioM.GetStack(),
 		linkEP:linkEP,
-		writeChan:make(chan buffer.View, 1024),
-		readViews:make(map[string][]buffer.View),
+		sendChan:make(chan buffer.View, 1024),
+		recvViews:make(map[string][]buffer.View),
 	}
 
 	f.ctx, f.ctxCancel = context.WithCancel(context.Background())
@@ -86,7 +86,7 @@ func (f *Fowarder) writer() {
 	Writing:
 	for {
 		select {
-		case b := <-f.writeChan:
+		case b := <-f.sendChan:
 
 			switch header.IPVersion(b) {
 			case header.IPv4Version:
@@ -126,15 +126,15 @@ func (f *Fowarder) writer() {
 }
 
 func (f *Fowarder) pushPacketToTarget(b []byte, dst net.IP) {
-	f.readViewsMu.Lock()
+	f.recvViewsMu.Lock()
 	key := dst.String()
 
-	if _, ok := f.readViews[key]; !ok {
-		f.readViews[key] = []buffer.View{}
+	if _, ok := f.recvViews[key]; !ok {
+		f.recvViews[key] = []buffer.View{}
 	}
 
-	f.readViews[key] = append(f.readViews[key], b)
-	f.readViewsMu.Unlock()
+	f.recvViews[key] = append(f.recvViews[key], b)
+	f.recvViewsMu.Unlock()
 }
 
 func (f *Fowarder) reader() {
@@ -155,23 +155,23 @@ func (f *Fowarder) reader() {
 }
 
 func (f *Fowarder) Send(b buffer.View) {
-	f.writeChan <- buffer.View(b)
+	f.sendChan <- buffer.View(b)
 }
 
 func (f *Fowarder) Recv(dst net.IP) ([]buffer.View) {
 
-	f.readViewsMu.Lock()
-	defer f.readViewsMu.Unlock()
+	f.recvViewsMu.Lock()
+	defer f.recvViewsMu.Unlock()
 
 	ip := dst.String()
 
-	if _, ok := f.readViews[ip]; !ok || len(f.readViews) <= 0 {
+	if _, ok := f.recvViews[ip]; !ok || len(f.recvViews) <= 0 {
 		return nil
 	}
 
-	if len(f.readViews) > 0 {
-		ret := f.readViews[ip]
-		f.readViews = []buffer.View{}
+	if len(f.recvViews) > 0 {
+		ret := f.recvViews[ip]
+		f.recvViews = []buffer.View{}
 		return ret
 	}
 
@@ -179,10 +179,10 @@ func (f *Fowarder) Recv(dst net.IP) ([]buffer.View) {
 }
 
 func (f *Fowarder) DeleteTarget(dst net.IP) {
-	f.readViewsMu.Lock()
-	defer f.readViewsMu.Unlock()
+	f.recvViewsMu.Lock()
+	defer f.recvViewsMu.Unlock()
 
-	delete(f.readViews, dst.String())
+	delete(f.recvViews, dst.String())
 }
 
 func (f *Fowarder) Close(reason error) {
