@@ -41,6 +41,7 @@ var ErrInValidHandshakeStep = errors.New("Invalid handshake step")
 var ErrInValidKeyLength = errors.New("Invalid key length")
 var ErrPeerAlreadyExist = errors.New("Peer exists")
 var ErrPacketLengthInvalid = errors.New("Packet length is not in (0,MTU]")
+var ErrWriteFail = errors.New("Write fail")
 
 type Config struct {
 	PublicKey        []byte

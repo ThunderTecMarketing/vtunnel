@@ -21,7 +21,6 @@ import (
 	"github.com/FTwOoO/netstack/tcpip/buffer"
 	"io"
 	"encoding/binary"
-	"errors"
 )
 
 var DefaultMTU = 1400
@@ -71,7 +70,7 @@ func WritePackets(w io.Writer, packets []buffer.View) error {
 		binary.BigEndian.PutUint16(lBuf, uint16(len(packet)))
 		n, err := w.Write(lBuf)
 		if n != 2 && err == nil {
-			err = errors.New("Write error")
+			err = ErrWriteFail
 		}
 
 		if err != nil {
@@ -80,7 +79,7 @@ func WritePackets(w io.Writer, packets []buffer.View) error {
 
 		n, err = w.Write([]byte(packet))
 		if n != len(packet) && err == nil {
-			err = errors.New("Write error")
+			err = ErrWriteFail
 		}
 
 		if err != nil {
