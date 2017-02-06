@@ -144,7 +144,7 @@ func (f *Fowarder) reader() {
 		case p := <-f.linkEP.C:
 			newPacket := append([]byte(p.Header), []byte(p.Payload)...)
 
-			targetIp := net.ParseIP(p.Route.RemoteAddress)
+			targetIp := net.ParseIP(string(p.Route.RemoteAddress))
 			f.pushPacketToTarget(newPacket, targetIp)
 
 		case <-f.ctx.Done():
@@ -171,7 +171,7 @@ func (f *Fowarder) Recv(dst net.IP) ([]buffer.View) {
 
 	if len(f.recvViews) > 0 {
 		ret := f.recvViews[ip]
-		f.recvViews = []buffer.View{}
+		f.recvViews = map[string][]buffer.View{}
 		return ret
 	}
 

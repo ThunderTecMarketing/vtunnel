@@ -89,7 +89,7 @@ func SendHandshake(t *testing.T, h *handler, clientHandshake *NoiseIXHandshake, 
 	reqContent := []byte{}
 	encodedReqContent, err := clientHandshake.Encode(reqContent)
 
-	req, err := http.NewRequest("POST", "http://localhost/auth/", bytes.NewBuffer(encodedReqContent))
+	req, err := http.NewRequest("POST", "http://127.0.0.1/auth/", bytes.NewBuffer(encodedReqContent))
 	if err != nil {
 		t.Fatalf("Could not create HTTP request: %v", err)
 	}
@@ -128,7 +128,7 @@ func SendData(t *testing.T, h *handler, clientSetting *ClientSetting, expectedCo
 	packet := createFakeIPPacket(net.IP{192,168,4,1})
 	WritePackets(buf, []buffer.View{packet})
 
-	req, err := http.NewRequest("POST", "http://localhost/packet/", buf)
+	req, err := http.NewRequest("POST", "http://127.0.0.1/packet/", buf)
 	if err != nil {
 		t.Fatalf("Could not create HTTP request: %v", err)
 	}
