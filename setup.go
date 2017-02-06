@@ -94,10 +94,6 @@ func Parse(c *caddy.Controller) (m *handler, err error) {
 				if m.Ip.To4() != nil {
 					m.Ip = m.Ip.To4()
 				}
-
-				if m.Subnet.IP.To4() != nil {
-					m.Subnet.IP = m.Subnet.IP.To4()
-				}
 			case "mtu":
 				m.MTU, err = Uint16Arg(c)
 			case "dnsport":
