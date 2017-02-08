@@ -9,7 +9,7 @@ import (
 	"log"
 	"encoding/hex"
 )
-/*
+
 
 func init() {
 	caddy.RegisterPlugin("vpn", caddy.Plugin{
@@ -17,11 +17,12 @@ func init() {
 		Action:     Setup,
 	})
 
+	// for caddydev:
 	//if os.Getenv("CADDY_DEV_MODE") == "1" {
-	httpserver.RegisterDevDirective("vpn", "")
+	//httpserver.RegisterDevDirective("vpn", "")
 	//}
 }
-*/
+
 
 func Setup(c *caddy.Controller) (err error) {
 
