@@ -1,17 +1,22 @@
-127.0.0.1:8080
+https://127.0.0.1:8001 {
+	tls self_signed
+	gzip
+	log logs/access.log
+	errors logs/error.log
 
-vpn {
-    publickey 0102030405060708090A0B0C0D0E0F101112131415161718191A1B1C1D00
-    privatekey  0102030405060708090A0B0C0D0E0F101112131415161718191A1B1C1D01
-    clients {
-        publickey 0102030405060708090A0B0C0D0E0F101112131415161718191A1B1C1D02
-        publickey 0102030405060708090A0B0C0D0E0F101112131415161718191A1B1C1D03
-        publickey 0102030405060708090A0B0C0D0E0F101112131415161718191A1B1C1D04
+	vpn {
+        publickey   e8e394b473b7b58514404fdddc0dd237ff631ceba3c0d1eddcddecb58f5a7d2a
+        privatekey  3fbf4c6e081f845ab7998471dd4af084eea403f66a87cb5c2d775fbaa6c76eb4
+        clients {
+            publickey e01ee3207ea15d346c362b7e20cef3a1088ec0a11a1141b3584ed44e2bb69531
+        }
+
+        subnet 192.168.4.1/24
+        mtu 1400
+        dnsport 53
+        auth /auth
+        packet /packet
     }
-
-    subnet 192.168.4.1/24
-    mtu 1400
-    dnsport 53
-    auth /auth
-    packet /packet
 }
+
+

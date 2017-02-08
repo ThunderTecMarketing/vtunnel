@@ -7,34 +7,34 @@ import (
 	"fmt"
 	"strconv"
 	"log"
-	"os"
 	"encoding/hex"
 )
+/*
 
 func init() {
-
-	if os.Getenv("CADDY_DEV_MODE") == "1" {
-		httpserver.RegisterDevDirective("vpn", "")
-	}
 	caddy.RegisterPlugin("vpn", caddy.Plugin{
 		ServerType: "http",
 		Action:     Setup,
 	})
 
+	//if os.Getenv("CADDY_DEV_MODE") == "1" {
+	httpserver.RegisterDevDirective("vpn", "")
+	//}
 }
+*/
 
 func Setup(c *caddy.Controller) (err error) {
+
 	var m *handler
 
-	for c.Next() {
-		if m != nil {
-			return c.Err("cannot specify vpn more than once")
-		}
-
-		if m, err = Parse(c); err != nil {
-			return err
-		}
+	if m != nil {
+		return c.Err("cannot specify vpn more than once")
 	}
+
+	if m, err = Parse(c); err != nil {
+		return err
+	}
+
 
 	// Runs on Caddy startup, useful for services or other setups.
 	c.OnStartup(func() error {

@@ -1,9 +1,0 @@
-{
-    "directive" :   "vpn",
-    "source"    :   ".",
-    "after"     :   "",
-    "update"    :   false,
-    "watch"     :   false,
-    "args"      :   "-port 8080",
-    "go_args"   :   "-race -x -v"
-}
