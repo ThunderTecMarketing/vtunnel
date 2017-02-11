@@ -45,7 +45,7 @@ func getClientHandshake(pub string, pri string) (h *NoiseIXHandshake, err error)
 
 func TestHandshake(t *testing.T) {
 
-	input := fmt.Sprintf(`vpn {
+	input := fmt.Sprintf(`vpn /vpn {
 		    publickey %s
 		    privatekey %s
 		    clients {
@@ -55,8 +55,6 @@ func TestHandshake(t *testing.T) {
 		    subnet 192.168.4.1/24
 		    mtu 1400
 		    dnsport 53
-		    auth /auth
-		    packet /packet
 		}`, serverPublicKey, serverPrivateKey, validClientPublicKey)
 
 	h, err := Parse(caddy.NewTestController("http", input))
@@ -89,7 +87,7 @@ func SendHandshake(t *testing.T, h *handler, clientHandshake *NoiseIXHandshake, 
 	reqContent := []byte{}
 	encodedReqContent, err := clientHandshake.Encode(reqContent)
 
-	req, err := http.NewRequest("POST", "https://127.0.0.1/auth/", bytes.NewBuffer(encodedReqContent))
+	req, err := http.NewRequest("POST", "https://127.0.0.1/vpn/", bytes.NewBuffer(encodedReqContent))
 	if err != nil {
 		t.Fatalf("Could not create HTTP request: %v", err)
 	}
@@ -128,7 +126,7 @@ func SendData(t *testing.T, h *handler, clientSetting *ClientSetting, expectedCo
 	packet := createFakeIPPacket(net.IP{192,168,4,1})
 	WritePackets(buf, []buffer.View{packet})
 
-	req, err := http.NewRequest("POST", "https://127.0.0.1/packet/", buf)
+	req, err := http.NewRequest("POST", "https://127.0.0.1/vpn/", buf)
 	if err != nil {
 		t.Fatalf("Could not create HTTP request: %v", err)
 	}

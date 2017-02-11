@@ -4,7 +4,7 @@ https://127.0.0.1:8001 {
 	log logs/access.log
 	errors logs/error.log
 
-	vpn {
+	vpn /vpn {
         clients {
             e01ee3207ea15d346c362b7e20cef3a1088ec0a11a1141b3584ed44e2bb69531
         }
@@ -12,8 +12,6 @@ https://127.0.0.1:8001 {
         subnet 192.168.4.1/24
         mtu 1400
         dnsport 53
-        auth /auth
-        packet /packet
     }
 }
 

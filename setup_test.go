@@ -6,6 +6,7 @@ import (
 	"github.com/mholt/caddy"
 	"net"
 	"encoding/hex"
+	"fmt"
 )
 
 func TestHeadersParse(t *testing.T) {
@@ -20,21 +21,19 @@ func TestHeadersParse(t *testing.T) {
 	}{
 
 		{
-			`vpn {
-			    publickey 000102030405060708090A0B0C0D0E0F101112131415161718191A1B1C1D1E1F
-			    privatekey  000102030405060708090A0B0C0D0E0F101112131415161718191A1B1C1D1E1F
+			fmt.Sprintf(`vpn /vpn {
+			    publickey %s
+			    privatekey  %s
 			    clients {
-				000102030405060708090A0B0C0D0E0F101112131415161718191A1B1C1D1E1F
-				000102030405060708090A0B0C0D0E0F101112131415161718191A1B1C1D1E1F
-				000102030405060708090A0B0C0D0E0F101112131415161718191A1B1C1D1E1F
+				%s
+				%s
+				%s
 			    }
 
 			    subnet 192.168.4.1/24
 			    mtu 1400
 			    dnsport 53
-			    auth /auth
-			    packet /packet
-			}`,
+			}`, defaultHexKey, defaultHexKey, defaultHexKey, defaultHexKey, defaultHexKey),
 
 			false,
 			&handler{
@@ -50,8 +49,7 @@ func TestHeadersParse(t *testing.T) {
 					Subnet:&net.IPNet{IP:net.IPv4(192, 168, 4, 0).To4(), Mask: net.CIDRMask(24, 32)},
 					MTU:1400,
 					DnsPort:53,
-					AuthPath:"/auth",
-					PacketPath:"/packet",
+					PacketPath:"/vpn",
 				},
 			},
 		},
