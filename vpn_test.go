@@ -49,7 +49,7 @@ func TestHandshake(t *testing.T) {
 		    publickey %s
 		    privatekey %s
 		    clients {
-			publickey %s
+		 	%s
 		    }
 
 		    subnet 192.168.4.1/24

@@ -6,10 +6,8 @@ import (
 	"github.com/mholt/caddy"
 	"fmt"
 	"strconv"
-	"log"
 	"encoding/hex"
 )
-
 
 func init() {
 	caddy.RegisterPlugin("vpn", caddy.Plugin{
@@ -22,7 +20,6 @@ func init() {
 	//httpserver.RegisterDevDirective("vpn", "")
 	//}
 }
-
 
 func Setup(c *caddy.Controller) (err error) {
 
@@ -80,14 +77,12 @@ func Parse(c *caddy.Controller) (m *handler, err error) {
 				var clientkey []byte
 
 				for c.NextBlock() {
-					switch c.Val() {
-					case "publickey":
-						clientkey, err = HexKeyArg(c, KeyLength)
-						m.ClientPublicKeys = append(m.ClientPublicKeys, clientkey)
-					default:
-						log.Print("Error publickey now\n")
-						return nil, c.ArgErr()
+					clientkey, err = HexKey(c.Val(), KeyLength)
+					if err != nil {
+						break
 					}
+					m.ClientPublicKeys = append(m.ClientPublicKeys, clientkey)
+
 				}
 
 			case "subnet":
@@ -131,7 +126,11 @@ func HexKeyArg(c *caddy.Controller, keylength int) (key []byte, err error) {
 		return
 	}
 
-	key, err = hex.DecodeString(tempkey)
+	return HexKey(tempkey, keylength)
+}
+
+func HexKey(hexkey string, keylength int) (key []byte, err error) {
+	key, err = hex.DecodeString(hexkey)
 	if err != nil {
 		return
 	}

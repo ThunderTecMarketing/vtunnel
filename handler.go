@@ -3,15 +3,11 @@ package vpn
 import (
 	"net/http"
 	"github.com/mholt/caddy/caddyhttp/httpserver"
-	"github.com/FTwOoO/noise"
-	"github.com/athom/goset"
 	"errors"
 	"net"
 	"encoding/hex"
-	"bytes"
 )
 
-const useNoiseIX = false
 
 type handler struct {
 	Config
@@ -22,24 +18,24 @@ type handler struct {
 
 func (m *handler) ServeHTTP(w http.ResponseWriter, req *http.Request) (int, error) {
 
-	if httpserver.Path(req.URL.Path).Matches(m.AuthPath) {
-		reqContent := make([]byte, 1024)
-		n, err := req.Body.Read(reqContent)
-		if err != nil {
-			return http.StatusUnauthorized, err
-		}
+	/*
+	if useNoiseIX {
+		if httpserver.Path(req.URL.Path).Matches(m.AuthPath) {
+			reqContent := make([]byte, 1024)
+			n, err := req.Body.Read(reqContent)
+			if err != nil {
+				return http.StatusUnauthorized, err
+			}
 
-		var ixHandshake *NoiseIXHandshake
-		var rs []byte
+			var ixHandshake *NoiseIXHandshake
+			var rs []byte
 
-		if useNoiseIX {
 			ixHandshake, err = NewNoiseIXHandshake(
 				DefaultCipherSuite,
 				[]byte(DefaultPrologue),
 				noise.DHKey{Public:m.PublicKey, Private:m.PrivateKey},
 				false,
 			)
-
 			if n <= 0 {
 				return http.StatusBadRequest, errors.New("Need HTTP body")
 			}
@@ -51,38 +47,32 @@ func (m *handler) ServeHTTP(w http.ResponseWriter, req *http.Request) (int, erro
 
 			rs = ixHandshake.Hs.PeerStatic()
 
-		} else {
-			ixHandshake = nil
-			rs = reqContent[:n]
-		}
+			if !goset.IsIncluded(m.Config.ClientPublicKeys, rs) {
+				return http.StatusUnauthorized, errors.New("Invalid Key")
+			}
+			peer, err := m.Peers.AddPeer(rs, ixHandshake, NewToken(DefaultTokenTimeout))
+			if err != nil {
+				return http.StatusUnauthorized, err
+			}
 
-		if !goset.IsIncluded(m.Config.ClientPublicKeys, rs) {
-			return http.StatusUnauthorized, errors.New("Invalid Key")
-		}
-		peer, err := m.Peers.AddPeer(rs, ixHandshake, NewToken(DefaultTokenTimeout))
-		if err != nil {
-			return http.StatusUnauthorized, err
-		}
-
-		clientSetting := ClientSetting{Ip:peer.Ip, Subnet:m.Subnet, Mtu:m.MTU, Token:peer.Token.Value}
-		var respContent []byte
-		if useNoiseIX {
+			clientSetting := ClientSetting{Ip:peer.Ip, Subnet:m.Subnet, Mtu:m.MTU, Token:peer.Token.Value}
+			var respContent []byte
 			respContent, err = ixHandshake.Encode([]byte(clientSetting.Encode()))
 			if err != nil {
 				return http.StatusUnauthorized, err
 			}
-		} else {
-			respContent = []byte(clientSetting.Encode())
+
+			w.Write(respContent)
+			return http.StatusOK, nil
 		}
 
-		w.Write(respContent)
-		return http.StatusOK, nil
 	}
+	*/
 
 	if httpserver.Path(req.URL.Path).Matches(m.PacketPath) {
 		ipS, tokenV, ok := req.BasicAuth()
 		if !ok {
-			w.Header().Set("WWW-Authenticate", "Basic realm=\"Restricted\"")
+			w.Header().Set("WWW-Authenticate", "Basic realm=\"vpn\"")
 			return http.StatusUnauthorized, nil
 		}
 
@@ -94,13 +84,13 @@ func (m *handler) ServeHTTP(w http.ResponseWriter, req *http.Request) (int, erro
 			return http.StatusUnauthorized, errors.New("Ip format error")
 		}
 
-		token, err := hex.DecodeString(tokenV)
+		_, err := hex.DecodeString(tokenV)
 		if err != nil {
 			return http.StatusUnauthorized, err
 		}
 
 		var peer *Peer
-		if peer = m.Peers.GetPeerByIp(ip); peer == nil || !peer.IsValid() || !bytes.Equal(peer.Token.Value, token) {
+		if peer = m.Peers.GetPeerByIp(ip); peer == nil || !peer.IsValid() {
 			return http.StatusUnauthorized, errors.New("Invalid token or peer ")
 		}
 

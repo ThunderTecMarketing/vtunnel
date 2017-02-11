@@ -47,13 +47,12 @@ func (t *Token) IsValid() bool {
 
 type Peer struct {
 	PublicKey        []byte
-	Token            *Token
 	Ip               net.IP
-	NoiseIKHandshake *NoiseIXHandshake
+	//NoiseIKHandshake *NoiseIXHandshake
 }
 
 func (peer *Peer) IsValid() bool {
-	return peer.Token.IsValid()
+	return true
 }
 
 type Peers struct {
@@ -91,7 +90,7 @@ func (vs *Peers) checkTimeout(timeout time.Duration) {
 	}
 }
 
-func (vs *Peers) AddPeer(publicKey []byte, handshake *NoiseIXHandshake, token *Token) (peer *Peer, err error) {
+func (vs *Peers) AddPeer(publicKey []byte) (peer *Peer, err error) {
 	vs.peerLock.RLock()
 	defer vs.peerLock.RUnlock()
 
@@ -112,13 +111,9 @@ func (vs *Peers) AddPeer(publicKey []byte, handshake *NoiseIXHandshake, token *T
 			break
 		}
 
-		peer = &Peer{Ip:ip, PublicKey:publicKey, NoiseIKHandshake: handshake, Token:token}
+		peer = &Peer{Ip:ip, PublicKey:publicKey}
 		vs.peerByIp[peer.Ip.String()] = peer
 		vs.peerByKey[string(publicKey)] = peer
-	} else {
-		peer.NoiseIKHandshake = handshake
-		peer.Token = token
-
 	}
 
 	return
