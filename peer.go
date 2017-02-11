@@ -46,8 +46,8 @@ func (t *Token) IsValid() bool {
 }
 
 type Peer struct {
-	PublicKey        []byte
-	Ip               net.IP
+	Key []byte
+	Ip  net.IP
 	//NoiseIKHandshake *NoiseIXHandshake
 }
 
@@ -111,7 +111,7 @@ func (vs *Peers) AddPeer(publicKey []byte) (peer *Peer, err error) {
 			break
 		}
 
-		peer = &Peer{Ip:ip, PublicKey:publicKey}
+		peer = &Peer{Ip:ip, Key:publicKey}
 		vs.peerByIp[peer.Ip.String()] = peer
 		vs.peerByKey[string(publicKey)] = peer
 	}
@@ -125,7 +125,7 @@ func (vs *Peers) DeletePeer(peer *Peer) {
 
 	vs.ipPool.Release(peer.Ip)
 	delete(vs.peerByIp, peer.Ip.String())
-	delete(vs.peerByKey, string(peer.PublicKey))
+	delete(vs.peerByKey, string(peer.Key))
 	vs.deleteCallback(peer)
 
 }
@@ -135,7 +135,12 @@ func (vs *Peers) GetPeerByIp(ip net.IP) (*Peer) {
 	defer vs.peerLock.RUnlock()
 
 	if peer, ok := vs.peerByIp[ip.String()]; ok {
-		return peer
+		if peer.IsValid() {
+			return peer
+		} else {
+			vs.DeletePeer(peer)
+			return nil
+		}
 	}
 
 	return nil

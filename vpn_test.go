@@ -105,12 +105,7 @@ func SendHandshake(t *testing.T, h *handler, clientHandshake *NoiseIXHandshake, 
 			t.Fatal(err)
 		}
 
-		decodedRespContent, err := clientHandshake.Decode(respContent[:n])
-		if err != nil {
-			t.Fatal(err)
-		}
-
-		cliSetting, err := DecodeClientSetting(string(decodedRespContent))
+		cliSetting, err := DecodeClientSetting(string(respContent[:n]))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -123,7 +118,7 @@ func SendHandshake(t *testing.T, h *handler, clientHandshake *NoiseIXHandshake, 
 
 func SendData(t *testing.T, h *handler, clientSetting *ClientSetting, expectedCode int) {
 	buf := bytes.NewBuffer([]byte{})
-	packet := createFakeIPPacket(net.IP{192,168,4,1})
+	packet := createFakeIPPacket(net.IP{192, 168, 4, 1})
 	WritePackets(buf, []buffer.View{packet})
 
 	req, err := http.NewRequest("POST", "https://127.0.0.1/vpn/", buf)
@@ -132,7 +127,7 @@ func SendData(t *testing.T, h *handler, clientSetting *ClientSetting, expectedCo
 	}
 
 	if clientSetting != nil {
-		req.SetBasicAuth(clientSetting.Ip.String(), hex.EncodeToString(clientSetting.Token))
+		req.SetBasicAuth(clientSetting.Ip.String(), "")
 	}
 
 	rec := httptest.NewRecorder()
@@ -146,12 +141,11 @@ func SendData(t *testing.T, h *handler, clientSetting *ClientSetting, expectedCo
 
 }
 
-
 func createFakeIPPacket(src net.IP) []byte {
 	buf := gopacket.NewSerializeBuffer()
 	opts := gopacket.SerializeOptions{FixLengths:true}
 	gopacket.SerializeLayers(buf, opts,
-		&layers.IPv4{SrcIP:src, DstIP:net.IPv4(8,8,8,8), Protocol:layers.IPProtocolICMPv4},
+		&layers.IPv4{SrcIP:src, DstIP:net.IPv4(8, 8, 8, 8), Protocol:layers.IPProtocolICMPv4},
 		&layers.ICMPv4{Id:uint16(rand.Int31())},
 	)
 

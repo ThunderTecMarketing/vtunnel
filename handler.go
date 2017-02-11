@@ -6,6 +6,8 @@ import (
 	"errors"
 	"net"
 	"github.com/athom/goset"
+	"encoding/hex"
+	"bytes"
 )
 
 type handler struct {
@@ -17,80 +19,69 @@ type handler struct {
 
 func (m *handler) ServeHTTP(w http.ResponseWriter, req *http.Request) (int, error) {
 
-	/*
-	if useNoiseIX {
-		if httpserver.Path(req.URL.Path).Matches(m.AuthPath) {
-			reqContent := make([]byte, 1024)
-			n, err := req.Body.Read(reqContent)
-			if err != nil {
-				return http.StatusUnauthorized, err
-			}
+	if httpserver.Path(req.URL.Path).Matches(m.VPNAuthPath) {
 
-			var ixHandshake *NoiseIXHandshake
-			var rs []byte
+		var err error
+		var password []byte
+		var peer *Peer
 
-			ixHandshake, err = NewNoiseIXHandshake(
-				DefaultCipherSuite,
-				[]byte(DefaultPrologue),
-				noise.DHKey{Public:m.PublicKey, Private:m.PrivateKey},
-				false,
-			)
-			if n <= 0 {
-				return http.StatusBadRequest, errors.New("Need HTTP body")
-			}
-
-			_, err = ixHandshake.Decode(reqContent[:n])
-			if err != nil {
-				return http.StatusUnauthorized, err
-			}
-
-			rs = ixHandshake.Hs.PeerStatic()
-
-			if !goset.IsIncluded(m.Config.ClientPublicKeys, rs) {
-				return http.StatusUnauthorized, errors.New("Invalid Key")
-			}
-			peer, err := m.Peers.AddPeer(rs, ixHandshake, NewToken(DefaultTokenTimeout))
-			if err != nil {
-				return http.StatusUnauthorized, err
-			}
-
-			clientSetting := ClientSetting{Ip:peer.Ip, Subnet:m.Subnet, Mtu:m.MTU, Token:peer.Token.Value}
-			var respContent []byte
-			respContent, err = ixHandshake.Encode([]byte(clientSetting.Encode()))
-			if err != nil {
-				return http.StatusUnauthorized, err
-			}
-
-			w.Write(respContent)
-			return http.StatusOK, nil
-		}
-
-	}
-	*/
-
-	if httpserver.Path(req.URL.Path).Matches(m.PacketPath) {
-		ipkey, password, ok := req.BasicAuth()
+		_, passwordS, ok := req.BasicAuth()
 		if !ok {
 			w.Header().Set("WWW-Authenticate", "Basic realm=\"vpn\"")
 			return http.StatusUnauthorized, nil
 		}
 
-		// remove credentials from request to avoid leaking upstream
-		req.Header.Del("Authorization")
-
-		ip := net.ParseIP(ipkey)
-		if ip == nil {
-			return http.StatusUnauthorized, errors.New("Ip format error")
+		password, err = hex.DecodeString(passwordS)
+		if err != nil {
+			return http.StatusUnauthorized, err
 		}
 
 		if !goset.IsIncluded(m.Config.ClientPublicKeys, password) {
 			return http.StatusUnauthorized, errors.New("Invalid Key")
 		}
 
-		var peer *Peer
-		peer, err := m.Peers.AddPeer([]byte(password))
+		peer, err = m.Peers.AddPeer(password)
 		if err != nil {
 			return http.StatusUnauthorized, err
+		}
+
+		clientSetting := ClientSetting{Ip:peer.Ip, Subnet:m.Subnet, Mtu:m.MTU}
+		var respContent []byte = []byte(clientSetting.Encode())
+		if err != nil {
+			return http.StatusUnauthorized, err
+		}
+
+		w.Write(respContent)
+		return http.StatusOK, nil
+	}
+
+	if httpserver.Path(req.URL.Path).Matches(m.VPNDataPath) {
+		var err error
+		var password []byte
+		var peer *Peer
+
+		ipS, passwordS, ok := req.BasicAuth()
+		if !ok {
+			w.Header().Set("WWW-Authenticate", "Basic realm=\"vpn\"")
+			return http.StatusUnauthorized, nil
+		}
+
+		password, err = hex.DecodeString(passwordS)
+		if err != nil {
+			return http.StatusUnauthorized, err
+		}
+
+		ip := net.ParseIP(ipS)
+		if ip == nil {
+			return http.StatusUnauthorized, errors.New("Ip format error")
+		}
+
+		// remove credentials from request to avoid leaking upstream
+		req.Header.Del("Authorization")
+
+		peer = m.Peers.GetPeerByIp(ip)
+		if peer == nil || !bytes.Equal(peer.Key, password) {
+			return http.StatusUnauthorized, errors.New("Invalid ip/password ")
 		}
 
 		packets, err := ReadPackets(req.Body)

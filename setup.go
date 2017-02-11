@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"strconv"
 	"encoding/hex"
+	"path/filepath"
 )
 
 func init() {
@@ -60,7 +61,8 @@ func Parse(c *caddy.Controller) (m *handler, err error) {
 		args := c.RemainingArgs()
 		switch len(args) {
 		case 1:
-			m.PacketPath = args[0]
+			m.VPNDataPath = args[0]
+			m.VPNAuthPath = filepath.Join(m.VPNDataPath, "auth/")
 		default:
 			return nil, c.ArgErr()
 		}

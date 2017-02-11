@@ -24,7 +24,6 @@ import (
 	"github.com/FTwOoO/noise"
 	"time"
 	"fmt"
-	"encoding/hex"
 	"net/url"
 	"strconv"
 )
@@ -51,15 +50,14 @@ type Config struct {
 	Subnet           *net.IPNet
 	MTU              uint16
 	DnsPort          uint16
-	AuthPath         string
-	PacketPath       string
+	VPNAuthPath      string
+	VPNDataPath      string
 }
 
 type ClientSetting struct {
 	Ip     net.IP
 	Subnet *net.IPNet
 	Mtu    uint16
-	Token  []byte
 }
 
 func (cs *ClientSetting) Encode() string {
@@ -68,7 +66,6 @@ func (cs *ClientSetting) Encode() string {
 	clientSetting := make(url.Values)
 	clientSetting.Set("ip", fmt.Sprintf("%s/%d", cs.Ip.String(), maskNum))
 	clientSetting.Set("mtu", fmt.Sprintf("%d", cs.Mtu))
-	clientSetting.Set("token", hex.EncodeToString(cs.Token))
 
 	return clientSetting.Encode()
 }
@@ -97,17 +94,6 @@ func DecodeClientSetting(content string) (cs *ClientSetting, err error) {
 
 	mtu, err := strconv.ParseInt(mtuS, 10, 16)
 	cs.Mtu = uint16(mtu)
-
-	tokenS := q.Get("token")
-	if tokenS == "" {
-		return nil, errors.New("Need token")
-	}
-
-	token, err := hex.DecodeString(tokenS)
-	if err != nil {
-		return
-	}
-	cs.Token = token
 
 	return
 }
