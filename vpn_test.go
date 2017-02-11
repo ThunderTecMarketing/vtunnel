@@ -43,6 +43,11 @@ func getClientHandshake(pub string, pri string) (h *NoiseIXHandshake, err error)
 	return
 }
 
+type BasicAuthInfo struct {
+	user     string
+	password string
+}
+
 func TestHandshake(t *testing.T) {
 
 	input := fmt.Sprintf(`vpn /vpn {
@@ -66,6 +71,7 @@ func TestHandshake(t *testing.T) {
 		return http.StatusNotFound, errors.New("404 error")
 	})
 
+	/*
 	validHs, err := getClientHandshake(validClientPublicKey, validClientPrivateKey)
 	if err != nil {
 		t.Fatal(err)
@@ -74,23 +80,27 @@ func TestHandshake(t *testing.T) {
 	invalidHs, err := getClientHandshake(invalidClientPublicKey, invalidClientPrivateKey)
 	if err != nil {
 		t.Fatal(err)
-	}
+	}*/
 
-	cliSetting := SendHandshake(t, h, validHs, http.StatusOK)
-	SendHandshake(t, h, invalidHs, http.StatusUnauthorized)
+	invalidAuth := BasicAuthInfo{user:"__", password:invalidClientPublicKey}
 
-	SendData(t, h, nil, http.StatusUnauthorized)
-	SendData(t, h, cliSetting, http.StatusOK)
+	SendBasicAuthHandshake(t, h, invalidAuth, http.StatusUnauthorized)
+	SendDataWithBasicAuth(t, h, invalidAuth, http.StatusUnauthorized)
+
+	validAuth := BasicAuthInfo{user:"__", password:validClientPublicKey}
+	cliSetting := SendBasicAuthHandshake(t, h, validAuth, http.StatusOK)
+
+	validAuth.user = cliSetting.Ip.String()
+	SendDataWithBasicAuth(t, h, validAuth, http.StatusOK)
 }
 
-func SendHandshake(t *testing.T, h *handler, clientHandshake *NoiseIXHandshake, expectedCode int) *ClientSetting {
-	reqContent := []byte{}
-	encodedReqContent, err := clientHandshake.Encode(reqContent)
+func SendBasicAuthHandshake(t *testing.T, h *handler, info BasicAuthInfo, expectedCode int) *ClientSetting {
 
-	req, err := http.NewRequest("POST", "https://127.0.0.1/vpn/", bytes.NewBuffer(encodedReqContent))
+	req, err := http.NewRequest("GET", "https://127.0.0.1/vpn/auth", nil)
 	if err != nil {
 		t.Fatalf("Could not create HTTP request: %v", err)
 	}
+	req.SetBasicAuth(info.user, info.password)
 
 	rec := httptest.NewRecorder()
 	statusCode, err := h.ServeHTTP(rec, req)
@@ -116,7 +126,7 @@ func SendHandshake(t *testing.T, h *handler, clientHandshake *NoiseIXHandshake, 
 	return nil
 }
 
-func SendData(t *testing.T, h *handler, clientSetting *ClientSetting, expectedCode int) {
+func SendDataWithBasicAuth(t *testing.T, h *handler, info BasicAuthInfo, expectedCode int) {
 	buf := bytes.NewBuffer([]byte{})
 	packet := createFakeIPPacket(net.IP{192, 168, 4, 1})
 	WritePackets(buf, []buffer.View{packet})
@@ -126,9 +136,7 @@ func SendData(t *testing.T, h *handler, clientSetting *ClientSetting, expectedCo
 		t.Fatalf("Could not create HTTP request: %v", err)
 	}
 
-	if clientSetting != nil {
-		req.SetBasicAuth(clientSetting.Ip.String(), "")
-	}
+	req.SetBasicAuth(info.user, info.password)
 
 	rec := httptest.NewRecorder()
 	statusCode, err := h.ServeHTTP(rec, req)

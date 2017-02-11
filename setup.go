@@ -96,8 +96,6 @@ func Parse(c *caddy.Controller) (m *handler, err error) {
 				m.MTU, err = Uint16Arg(c)
 			case "dnsport":
 				m.DnsPort, err = Uint16Arg(c)
-		/*	case "auth":
-				m.AuthPath, err = StringArg(c)*/
 			default:
 				err = c.Errf("Unknown vpn arg: %s", c.Val())
 			}
