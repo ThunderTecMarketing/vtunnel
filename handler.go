@@ -14,10 +14,26 @@ type handler struct {
 	Config
 	Next     httpserver.Handler
 	Fowarder *Fowarder
+	DnsServer *DnsServer
 	Peers    *Peers
 }
 
 func (m *handler) ServeHTTP(w http.ResponseWriter, req *http.Request) (int, error) {
+
+	print(httpserver.Path(req.URL.Path))
+
+	if httpserver.Path(req.URL.Path) == "/dns/" {
+		packet := make([]byte, 1024)
+		n, err := req.Body.Read(packet)
+		if err != nil {
+			return http.StatusInternalServerError, err
+		}
+
+		m.DnsServer.query(packet[:n], w.Write)
+		return http.StatusOK, nil
+	}
+
+
 
 	if httpserver.Path(req.URL.Path).Matches(m.VPNAuthPath) {
 
