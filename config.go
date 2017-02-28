@@ -46,12 +46,7 @@ type Config struct {
 	PublicKey        []byte
 	PrivateKey       []byte
 	ClientPublicKeys [][]byte
-	Ip               net.IP
-	Subnet           *net.IPNet
-	MTU              uint16
-	DnsPort          uint16
-	VPNAuthPath      string
-	VPNDataPath      string
+	VPNPath      string
 }
 
 type ClientSetting struct {

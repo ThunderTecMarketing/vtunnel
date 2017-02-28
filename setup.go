@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"strconv"
 	"encoding/hex"
-	"path/filepath"
 )
 
 func init() {
@@ -61,8 +60,7 @@ func Parse(c *caddy.Controller) (m *handler, err error) {
 		args := c.RemainingArgs()
 		switch len(args) {
 		case 1:
-			m.VPNDataPath = args[0]
-			m.VPNAuthPath = filepath.Join(m.VPNDataPath, "auth/")
+			m.VPNPath = args[0]
 		default:
 			return nil, c.ArgErr()
 		}
@@ -87,15 +85,6 @@ func Parse(c *caddy.Controller) (m *handler, err error) {
 
 				}
 
-			case "subnet":
-				m.Ip, m.Subnet, err = CidrArg(c)
-				if m.Ip.To4() != nil {
-					m.Ip = m.Ip.To4()
-				}
-			case "mtu":
-				m.MTU, err = Uint16Arg(c)
-			case "dnsport":
-				m.DnsPort, err = Uint16Arg(c)
 			default:
 				err = c.Errf("Unknown vpn arg: %s", c.Val())
 			}
@@ -105,8 +94,6 @@ func Parse(c *caddy.Controller) (m *handler, err error) {
 		}
 	}
 
-	m.Peers = NewPeers(&m.Config, m.DeletePeer)
-	m.Fowarder, err = NewFowarder(m.Ip, m.Subnet, m.MTU)
 	m.DnsServer, err = CreateDnsServer()
 	return
 }

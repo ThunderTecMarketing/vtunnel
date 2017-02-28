@@ -27,9 +27,6 @@ func createTestHandler() *handler {
 		 	%s
 		    }
 
-		    subnet 192.168.4.1/24
-		    mtu 1400
-		    dnsport 53
 		}`, serverPublicKey, serverPrivateKey, validClientPublicKey)
 
 	h, err := Parse(caddy.NewTestController("http", input))

@@ -4,7 +4,6 @@ import (
 	"reflect"
 	"testing"
 	"github.com/mholt/caddy"
-	"net"
 	"encoding/hex"
 	"fmt"
 )
@@ -30,9 +29,6 @@ func TestHeadersParse(t *testing.T) {
 				%s
 			    }
 
-			    subnet 192.168.4.1/24
-			    mtu 1400
-			    dnsport 53
 			}`, defaultHexKey, defaultHexKey, defaultHexKey, defaultHexKey, defaultHexKey),
 
 			false,
@@ -45,12 +41,8 @@ func TestHeadersParse(t *testing.T) {
 						defaultKey,
 						defaultKey,
 					},
-					Ip:net.IPv4(192, 168, 4, 1).To4(),
-					Subnet:&net.IPNet{IP:net.IPv4(192, 168, 4, 0).To4(), Mask: net.CIDRMask(24, 32)},
-					MTU:1400,
-					DnsPort:53,
-					VPNDataPath:"/vpn",
-					VPNAuthPath:"/vpn/auth",
+
+					VPNPath:"/vpn",
 				},
 			},
 		},

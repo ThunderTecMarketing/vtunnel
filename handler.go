@@ -3,19 +3,12 @@ package vpn
 import (
 	"net/http"
 	"github.com/mholt/caddy/caddyhttp/httpserver"
-	"errors"
-	"net"
-	"github.com/athom/goset"
-	"encoding/hex"
-	"bytes"
 )
 
 type handler struct {
 	Config
 	Next     httpserver.Handler
-	Fowarder *Fowarder
 	DnsServer *DnsServer
-	Peers    *Peers
 }
 
 func (m *handler) ServeHTTP(w http.ResponseWriter, req *http.Request) (int, error) {
@@ -28,13 +21,12 @@ func (m *handler) ServeHTTP(w http.ResponseWriter, req *http.Request) (int, erro
 		if err != nil {
 			return http.StatusInternalServerError, err
 		}
-
 		m.DnsServer.query(packet[:n], w.Write)
 		return http.StatusOK, nil
 	}
 
 
-
+	/*
 	if httpserver.Path(req.URL.Path).Matches(m.VPNAuthPath) {
 
 		var err error
@@ -121,9 +113,7 @@ func (m *handler) ServeHTTP(w http.ResponseWriter, req *http.Request) (int, erro
 		return http.StatusOK, nil
 	}
 
-	return m.Next.ServeHTTP(w, req)
-}
+	*/
 
-func (m *handler) DeletePeer(peer *Peer) {
-	m.Fowarder.DeleteTarget(peer.Ip)
+	return m.Next.ServeHTTP(w, req)
 }

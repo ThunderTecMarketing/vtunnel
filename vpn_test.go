@@ -16,7 +16,6 @@ import (
 	"github.com/google/gopacket/layers"
 	"math/rand"
 	"net"
-	"github.com/FTwOoO/netstack/tcpip/buffer"
 )
 
 var validClientPublicKey = "e01ee3207ea15d346c362b7e20cef3a1088ec0a11a1141b3584ed44e2bb69531"
@@ -56,10 +55,6 @@ func TestHandshake(t *testing.T) {
 		    clients {
 		 	%s
 		    }
-
-		    subnet 192.168.4.1/24
-		    mtu 1400
-		    dnsport 53
 		}`, serverPublicKey, serverPrivateKey, validClientPublicKey)
 
 	h, err := Parse(caddy.NewTestController("http", input))
@@ -128,8 +123,6 @@ func SendBasicAuthHandshake(t *testing.T, h *handler, info BasicAuthInfo, expect
 
 func SendDataWithBasicAuth(t *testing.T, h *handler, info BasicAuthInfo, expectedCode int) {
 	buf := bytes.NewBuffer([]byte{})
-	packet := createFakeIPPacket(net.IP{192, 168, 4, 1})
-	WritePackets(buf, []buffer.View{packet})
 
 	req, err := http.NewRequest("POST", "https://127.0.0.1/vpn/", buf)
 	if err != nil {

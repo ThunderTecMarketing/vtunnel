@@ -18,74 +18,63 @@
 package vpn
 
 import (
-	"github.com/FTwOoO/netstack/tcpip/buffer"
-	"io"
 	"encoding/binary"
+	"io"
 )
 
 var DefaultMTU = 1400
 
-func ReadPackets(r io.Reader) (packets []buffer.View, err error) {
+type PacketType uint8
 
+const PacketTypeDNS = 1
+const PacketTypeOPEN = 2
+const PacketTypePACKETS = 3
+
+type Packet interface {
+}
+
+type BasicPacket struct {
+	packetType PacketType
+	data       []byte
+}
+
+func (p *BasicPacket) Unpack(r io.Reader) (err error) {
+
+	buf0 := make([]byte, 1)
 	buf1 := make([]byte, 2)
 	buf2 := make([]byte, DefaultMTU)
 
-	for {
-		if _, err = io.ReadFull(r, buf1); err != nil {
-			//nothing to read
-			if err == io.EOF {
-				err = nil
-				break
-			}
-			//maybe io.ErrUnexpectedEOF
-			return nil, err
-		}
+	if _, err = io.ReadFull(r, buf0); err != nil {
+		//maybe io.ErrUnexpectedEOF
+		return
+	}
+	p.packetType = PacketType(buf0[0])
 
-		packetLength := binary.BigEndian.Uint16(buf1)
-
-		if int(packetLength) > DefaultMTU || packetLength <= 0 {
-			return nil, ErrPacketLengthInvalid
-		}
-
-		if _, err = io.ReadFull(r, buf2[:packetLength]); err != nil {
-			return nil, err
-		}
-
-		newPacket := make([]byte, packetLength)
-		copy(newPacket, buf2[:packetLength])
-		packets = append(packets, newPacket)
+	if _, err = io.ReadFull(r, buf1); err != nil {
+		//maybe io.ErrUnexpectedEOF
+		return
 	}
 
-	if len(packets) <= 0 {
-		return nil, io.ErrUnexpectedEOF
+	packetLength := binary.BigEndian.Uint16(buf1)
+
+	if int(packetLength) > DefaultMTU || packetLength <= 0 {
+		return ErrPacketLengthInvalid
 	}
 
-	return
+	if _, err = io.ReadFull(r, buf2[:packetLength]); err != nil {
+		return
+	}
+
+	return nil
 }
 
-func WritePackets(w io.Writer, packets []buffer.View) error {
-	lBuf := make([]byte, 2)
+func (p *BasicPacket) Pack() []byte {
 
-	for _, packet := range packets {
-		binary.BigEndian.PutUint16(lBuf, uint16(len(packet)))
-		n, err := w.Write(lBuf)
-		if n != 2 && err == nil {
-			err = ErrWriteFail
-		}
+	lBuf := make([]byte, 3 + len(p.data))
 
-		if err != nil {
-			return err
-		}
-
-		n, err = w.Write([]byte(packet))
-		if n != len(packet) && err == nil {
-			err = ErrWriteFail
-		}
-
-		if err != nil {
-			return err
-		}
-	}
+	lBuf[0] = byte(p.packetType)
+	binary.BigEndian.PutUint16(lBuf[1:3], uint16(len(p.data)))
+	copy(lBuf[3:], p.data)
 
 	return nil
 }
