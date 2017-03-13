@@ -20,15 +20,11 @@ package main
 import (
 	_ "github.com/mholt/caddy"
 	_ "github.com/mholt/caddy/caddyhttp"
-	"github.com/mholt/caddy/caddyhttp/httpserver"
 	"github.com/mholt/caddy/caddy/caddymain"
 
-	_ ".." //setup.go will RegisterPlugin for vpn
 )
 
 func main() {
-
-	httpserver.RegisterDevDirective("vpn", "")
 
 	// set caddy file loader,
 	// load caddy file as http server type,

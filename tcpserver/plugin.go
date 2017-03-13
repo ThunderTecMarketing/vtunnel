@@ -1,4 +1,4 @@
-package vpn
+package tcpserver
 
 import (
 	"net"
@@ -9,19 +9,7 @@ import (
 	"encoding/hex"
 )
 
-func init() {
-	caddy.RegisterPlugin("vpn", caddy.Plugin{
-		ServerType: "http",
-		Action:     Setup,
-	})
-
-	// for caddydev:
-	//if os.Getenv("CADDY_DEV_MODE") == "1" {
-	//httpserver.RegisterDevDirective("vpn", "")
-	//}
-}
-
-func Setup(c *caddy.Controller) (err error) {
+func SetupTunnelPlugin(c *caddy.Controller) (err error) {
 
 	var m *handler
 
@@ -73,7 +61,7 @@ func Parse(c *caddy.Controller) (m *handler, err error) {
 				m.PrivateKey, err = HexKeyArg(c, KeyLength)
 			case "clients":
 				c.Next()
-				c.IncrNest()
+				//c.IncrNest()
 				var clientkey []byte
 
 				for c.NextBlock() {

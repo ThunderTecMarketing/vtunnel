@@ -3,7 +3,7 @@
  * Created: 2017-02
  */
 
-package vpn
+package tcpserver
 
 import (
 	"testing"

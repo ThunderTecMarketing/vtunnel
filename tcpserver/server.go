@@ -12,30 +12,40 @@ import (
 	"net"
 	"runtime"
 	"errors"
+	"fmt"
 )
 
+var DefaultPort = 10010
+var serverType = "tunnel"
+
+var directives = []string{
+	"server",
+	"clients",
+}
+
 func init() {
-	/*
+
 	caddy.RegisterServerType(serverType, caddy.ServerType{
-		Directives: func() []string { return directives },
+		Directives: func() []string {
+			return directives
+		},
 		DefaultInput: func() caddy.Input {
-			if Port == DefaultPort && Host != "" {
-				// by leaving the port blank in this case we give auto HTTPS
-				// a chance to set the port to 443 for us
-				return caddy.CaddyfileInput{
-					Contents:       []byte(fmt.Sprintf("%s\nroot %s", Host, Root)),
-					ServerTypeName: serverType,
-				}
-			}
 			return caddy.CaddyfileInput{
-				Contents:       []byte(fmt.Sprintf("%s:%s\nroot %s", Host, Port, Root)),
+				Contents:       []byte(fmt.Sprintf("0.0.0.0:%d {clients 12345678}", DefaultPort)),
 				ServerTypeName: serverType,
 			}
 		},
-		NewContext: newContext,
+		NewContext: new(tunnelContext),
 	})
-	caddy.RegisterCaddyfileLoader("short", caddy.LoaderFunc(shortCaddyfileLoader))
-	*/
+
+	caddy.RegisterPlugin(serverType, caddy.Plugin{
+		ServerType: "tunnel",
+		Action:     SetupTunnelPlugin,
+	})
+
+
+	//caddy.RegisterCaddyfileLoader("short", caddy.LoaderFunc(shortCaddyfileLoader))
+
 }
 
 
@@ -44,7 +54,7 @@ type Server struct {
 	listener    net.Listener
 	listenerMu  sync.Mutex
 	Addr        string
-	sites       []*Config
+	config      *Config
 	connTimeout time.Duration // max time to wait for a connection before force stop
 
 	doneChan    chan struct{}
@@ -58,10 +68,10 @@ var ErrServerClosed = errors.New("http: Server closed")
 
 // NewServer creates a new Server instance that will listen on addr
 // and will serve the sites configured in group.
-func NewServer(addr string, group []*Config) (*Server, error) {
+func NewServer(config *ServerConfig) (*Server, error) {
 	s := &Server{
-		Addr: addr,
-		sites:       group,
+		Addr: fmt.Sprintf("%s:%d", config.ListenHost, config.ListenPort),
+		config:       config,
 		connTimeout: GracefulTimeout,
 		doneChan: make(chan struct{}),
 	}

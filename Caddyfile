@@ -1,14 +1,3 @@
-https://127.0.0.1:8001 {
-	tls self_signed
-	gzip
-	log logs/access.log
-	errors logs/error.log
-
-	vpn /vpn {
-        clients {
-            e01ee3207ea15d346c362b7e20cef3a1088ec0a11a1141b3584ed44e2bb69531
-        }
-    }
+localhost:10088 {
+    root /www/mysite.com
 }
-
-
