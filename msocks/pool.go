@@ -25,44 +25,8 @@ func (sf *SessionFactory) CreateSession() (s *Session, err error) {
 		return
 	}
 
-	ti := time.AfterFunc(AUTH_TIMEOUT*time.Second, func() {
-		log.Notice(ErrAuthFailed.Error(), conn.RemoteAddr())
-		conn.Close()
-	})
-	defer func() {
-		ti.Stop()
-	}()
 
-	log.Notice("auth with username: %s, password: %s.", sf.username, sf.password)
-	fb := NewFrameAuth(0, sf.username, sf.password)
-	buf, err := fb.Packed()
-	if err != nil {
-		return
-	}
-
-	_, err = conn.Write(buf.Bytes())
-	if err != nil {
-		return
-	}
-
-	f, err := ReadFrame(conn)
-	if err != nil {
-		return
-	}
-
-	ft, ok := f.(*FrameResult)
-	if !ok {
-		return nil, ErrUnexpectedPkg
-	}
-
-	if ft.Errno != ERR_NONE {
-		conn.Close()
-		return nil, fmt.Errorf("create connection failed with code: %d.", ft.Errno)
-	}
-
-	log.Notice("auth passwd.")
 	s = NewSession(conn)
-	// s.pong()
 	return
 }
 

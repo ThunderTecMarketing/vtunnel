@@ -14,7 +14,7 @@ func TestFrameResultRead(t *testing.T) {
 		t.Fatalf("Read FrameResult failed")
 	}
 
-	ft, ok := f.(*FrameResult)
+	ft, ok := f.(*FrameSynResult)
 	if !ok || ft.Streamid != 0x0a0a {
 		t.Fatalf("FrameResult format wrong")
 	}

@@ -6,15 +6,14 @@ import (
 	"time"
 
 	logging "github.com/op/go-logging"
+	"net"
+	"github.com/miekg/dns"
 )
 
 const (
 	DIAL_RETRY   = 2
 	DIAL_TIMEOUT = 30
-	AUTH_TIMEOUT = 10
 	DNS_TIMEOUT  = 30
-
-	WINDOWSIZE = 4 * 1024 * 1024
 
 	SHRINK_TIME = 3
 	DEBUGDNS    = false
@@ -54,4 +53,50 @@ var (
 
 func init() {
 	rand.Seed(time.Now().UnixNano())
+}
+
+
+type Dialer interface {
+	Dial(string, string) (net.Conn, error)
+}
+
+
+type TcpDialer struct {
+}
+
+func (td *TcpDialer) Dial(network, address string) (net.Conn, error) {
+	return net.Dial(network, address)
+}
+
+func (td *TcpDialer) DialTimeout(network, address string, timeout time.Duration) (net.Conn, error) {
+	return net.DialTimeout(network, address, timeout)
+}
+
+var DefaultTcpDialer = &TcpDialer{}
+
+type Lookuper interface {
+	LookupIP(host string) (addrs []net.IP, err error)
+}
+
+type NetLookupIP struct {
+}
+
+func (n *NetLookupIP) LookupIP(host string) (addrs []net.IP, err error) {
+	return net.LookupIP(host)
+}
+
+var DefaultLookuper Lookuper
+
+func init() {
+	conf, err := dns.ClientConfigFromFile("/etc/resolv.conf")
+	if err != nil {
+		return
+	}
+
+	var addrs []string
+	for _, srv := range conf.Servers {
+		addrs = append(addrs, net.JoinHostPort(srv, conf.Port))
+	}
+
+	DefaultLookuper = NewDnsLookup(addrs, "")
 }

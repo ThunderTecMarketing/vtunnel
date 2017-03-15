@@ -19,23 +19,20 @@ const (
 )
 
 type Conn struct {
-	lock     sync.Mutex
-	status   uint8
-	sess     *Session
-	streamid uint16
-	sender   FrameSender
-	ch       chan uint32
-	Network  string
-	Address  string
+	lock        sync.Mutex
+	status      uint8
+	sess        *Session
+	streamid    uint16
+	sender      FrameSender
+	chSynResult chan uint32
+	Network     string
+	Address     string
 
-	rlock    sync.Mutex // this should used to block reader and reader, not writer
-	rbufsize uint32
-	r_rest   []byte
-	rqueue   *Queue
+	rlock       sync.Mutex // this should used to block reader and reader, not writer
+	r_rest      []byte
+	rqueue      *Queue
 
-	wlock    sync.Mutex
-	wbufsize uint32
-	wev      *sync.Cond
+	wlock       sync.Mutex
 }
 
 func NewConn(status uint8, streamid uint16, sess *Session, network, address string) (c *Conn) {
@@ -48,7 +45,6 @@ func NewConn(status uint8, streamid uint16, sess *Session, network, address stri
 		Address:  address,
 		rqueue:   NewQueue(),
 	}
-	c.wev = sync.NewCond(&c.wlock)
 	return
 }
 
@@ -79,9 +75,9 @@ func (c *Conn) String() (s string) {
 }
 
 func (c *Conn) WaitForConn() (err error) {
-	c.ch = make(chan uint32, 0)
+	c.chSynResult = make(chan uint32, 0)
 
-	fb := NewFrameSyn(c.streamid, c.Network, c.Address)
+	fb := &FrameSyn{c.streamid, c.Network, c.Address}
 	err = c.sess.SendFrame(fb)
 	if err != nil {
 		log.Error("%s", err)
@@ -89,7 +85,7 @@ func (c *Conn) WaitForConn() (err error) {
 		return
 	}
 
-	errno := RecvWithTimeout(c.ch, DIAL_TIMEOUT*time.Second)
+	errno := RecvWithTimeout(c.chSynResult, DIAL_TIMEOUT*time.Second)
 	if errno != ERR_NONE {
 		log.Error("remote connect %s failed for %d.", c.String(), errno)
 		c.Final()
@@ -97,14 +93,14 @@ func (c *Conn) WaitForConn() (err error) {
 		log.Notice("%s connected: %s => %s.", c.Network, c.String(), c.Address)
 	}
 
-	c.ch = nil
+	c.chSynResult = nil
 	return
 }
 
 func (c *Conn) Final() {
 	c.rqueue.Close()
 
-	err := c.sess.RemovePort(c.streamid)
+	err := c.sess.RemoveStream(c.streamid)
 	if err != nil {
 		log.Error("%s", err)
 	}
@@ -125,7 +121,7 @@ func (c *Conn) Close() (err error) {
 		return
 	case ST_EST:
 		log.Info("%s closed from local.", c.String())
-		fb := NewFrameFin(c.streamid)
+		fb := &FrameFin{FrameBase.Streamid: c.streamid}
 		err = c.sender.SendFrame(fb)
 		if err != nil {
 			log.Error("%s", err)
@@ -133,7 +129,7 @@ func (c *Conn) Close() (err error) {
 		}
 		c.status = ST_FIN_WAIT
 	case ST_CLOSE_WAIT:
-		fb := NewFrameFin(c.streamid)
+		fb := &FrameFin{FrameBase.Streamid: c.streamid}
 		err = c.sender.SendFrame(fb)
 		if err != nil {
 			log.Error("%s", err)
@@ -154,12 +150,10 @@ func (c *Conn) SendFrame(f Frame) (err error) {
 		log.Error("%s", err)
 		c.Close()
 		return
-	case *FrameResult:
-		return c.InConnect(ft.Errno)
+	case *FrameSynResult:
+		return c.InSynResult(ft.Errno)
 	case *FrameData:
 		return c.InData(ft)
-	case *FrameWnd:
-		return c.InWnd(ft)
 	case *FrameFin:
 		return c.InFin(ft)
 	case *FrameRst:
@@ -169,7 +163,7 @@ func (c *Conn) SendFrame(f Frame) (err error) {
 	return
 }
 
-func (c *Conn) InConnect(errno uint32) (err error) {
+func (c *Conn) InSynResult(errno uint32) (err error) {
 	c.lock.Lock()
 	defer c.lock.Unlock()
 
@@ -184,7 +178,7 @@ func (c *Conn) InConnect(errno uint32) (err error) {
 	}
 
 	select {
-	case c.ch <- errno:
+	case c.chSynResult <- errno:
 	default:
 	}
 	return
@@ -196,18 +190,7 @@ func (c *Conn) InData(ft *FrameData) (err error) {
 	if err != nil {
 		return
 	}
-	c.rbufsize += uint32(len(ft.Data))
 	return
-}
-
-func (c *Conn) InWnd(ft *FrameWnd) (err error) {
-	c.wlock.Lock()
-	defer c.wlock.Unlock()
-	c.wbufsize -= ft.Window
-	c.wev.Signal()
-	log.Debug("remote readed %d, write buffer size: %d.",
-		ft.Window, c.wbufsize)
-	return nil
 }
 
 func (c *Conn) InFin(ft *FrameFin) (err error) {
@@ -279,12 +262,6 @@ func (c *Conn) Read(data []byte) (n int, err error) {
 		}
 	}
 
-	c.rbufsize -= uint32(n)
-	fb := NewFrameWnd(c.streamid, uint32(n))
-	err = c.sender.SendFrame(fb)
-	if err != nil {
-		log.Error("%s", err)
-	}
 	return
 }
 
@@ -318,16 +295,11 @@ func (c *Conn) Write(data []byte) (n int, err error) {
 }
 
 func (c *Conn) WriteSlice(data []byte) (err error) {
-	f := NewFrameData(c.streamid, data)
+	f := &FrameData{FrameBase.Streamid:c.streamid, Data:data}
 
 	if c.status != ST_EST && c.status != ST_CLOSE_WAIT {
 		log.Error("status %d found in write slice", c.status)
 		return ErrState
-	}
-
-	log.Debug("write buffer size: %d, write len: %d", c.wbufsize, len(data))
-	for c.wbufsize+uint32(len(data)) > WINDOWSIZE {
-		c.wev.Wait()
 	}
 
 	err = c.sender.SendFrame(f)
@@ -335,8 +307,6 @@ func (c *Conn) WriteSlice(data []byte) (err error) {
 		log.Error("%s", err)
 		return
 	}
-	c.wbufsize += uint32(len(data))
-	c.wev.Signal()
 	return
 }
 
@@ -368,14 +338,6 @@ func (c *Conn) GetStatus() (st string) {
 		return "FIN_WAIT"
 	}
 	return "UNKNOWN"
-}
-
-func (c *Conn) GetReadBufSize() (n uint32) {
-	return c.rbufsize
-}
-
-func (c *Conn) GetWriteBufSize() (n uint32) {
-	return c.wbufsize
 }
 
 func (c *Conn) SetDeadline(t time.Time) error {
