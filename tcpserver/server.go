@@ -54,7 +54,7 @@ type Server struct {
 	listener    net.Listener
 	listenerMu  sync.Mutex
 	Addr        string
-	config      *Config
+	config      *ServerConfig
 	connTimeout time.Duration // max time to wait for a connection before force stop
 
 	doneChan    chan struct{}

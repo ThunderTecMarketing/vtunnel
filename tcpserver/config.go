@@ -8,11 +8,10 @@ package tcpserver
 import (
 	"time"
 	"errors"
-	"github.com/FTwOoO/noise"
 )
 
 var DefaultPrologue = "caddy-vpn"
-var KeyLength = noise.DH25519.DHLen()
+var KeyLength = 16
 
 var DefaultPeerTimeout = time.Duration(30 * time.Second)
 var DefaultTokenTimeout = time.Duration(10 * time.Second)
@@ -33,4 +32,3 @@ type ServerConfig struct {
 	ClientPublicKeys [][]byte
 	VPNPath      string
 }
-
