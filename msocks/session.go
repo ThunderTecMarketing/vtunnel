@@ -245,12 +245,15 @@ func (s *Session) on_syn(ft *FrameSyn) (err error) {
 	go func() {
 		var err error
 		var conn net.Conn
-		log.Debug("try to connect %s => %s:%s.", c.String(), ft.Network, ft.Address)
+
+		var network = ft.Address.Network
+		var address = fmt.Sprintf("%s:%d", ft.Address.DstHost, ft.Address.DstPort)
+		log.Debug("try to connect %s => %s:%s.", c.String(), network, address)
 
 		if dialer, ok := s.dialer.(*TcpDialer); ok {
-			conn, err = dialer.DialTimeout(ft.Network, ft.Address, DIAL_TIMEOUT*time.Second)
+			conn, err = dialer.DialTimeout(network, address, DIAL_TIMEOUT*time.Second)
 		} else {
-			conn, err = s.dialer.Dial(ft.Network, ft.Address)
+			conn, err = s.dialer.Dial(network, address)
 		}
 
 		if err != nil {
