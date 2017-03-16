@@ -8,5 +8,5 @@ type Handler interface {
 
 type handler struct {
 	Next      Handler
-	DnsServer *DnsServer
+	//DnsServer *DnsServer
 }

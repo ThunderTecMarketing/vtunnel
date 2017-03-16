@@ -2,7 +2,6 @@ package tcpserver
 
 import (
 	"net"
-	"github.com/mholt/caddy/caddyhttp/httpserver"
 	"github.com/mholt/caddy"
 	"fmt"
 	"strconv"
@@ -34,14 +33,11 @@ func SetupTunnelPlugin(c *caddy.Controller) (err error) {
 		return nil
 	})
 
-	httpserver.GetConfig(c).AddMiddleware(func(next httpserver.Handler) httpserver.Handler {
-		m.Next = next
-		return m
-	})
 	return nil
 }
 
 func Parse(c *caddy.Controller) (m *handler, err error) {
+	/*
 	m = &handler{}
 
 	if c.Next() {
@@ -83,6 +79,7 @@ func Parse(c *caddy.Controller) (m *handler, err error) {
 	}
 
 	m.DnsServer, err = CreateDnsServer()
+	*/
 	return
 }
 

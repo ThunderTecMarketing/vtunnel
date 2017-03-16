@@ -19,6 +19,10 @@ type tunnelContext struct {
 
 func (h *tunnelContext) saveConfig(key string, cfg *ServerConfig) {
 	h.configs = append(h.configs, cfg)
+	if h.keysToConfigs == nil {
+		h.keysToConfigs = map[string]*ServerConfig{}
+	}
+
 	h.keysToConfigs[key] = cfg
 }
 func (h *tunnelContext) InspectServerBlocks(sourceFile string, serverBlocks []caddyfile.ServerBlock) ([]caddyfile.ServerBlock, error) {
@@ -28,10 +32,10 @@ func (h *tunnelContext) InspectServerBlocks(sourceFile string, serverBlocks []ca
 			host, port, err := standardizeAddress(key)
 			if err != nil {
 				return serverBlocks, err
-
+			} else {
 				cfg := &ServerConfig{
 					ListenHost: host,
-					ListenPort: port,
+					ListenPort: uint16(port),
 				}
 				h.saveConfig(key, cfg)
 			}
@@ -57,14 +61,14 @@ func (h *tunnelContext) MakeServers() ([]caddy.Server, error) {
 
 }
 
-func standardizeAddress(str string) (Host string, Port uint16, err error) {
+func standardizeAddress(str string) (Host string, Port int, err error) {
 
 	// separate host and port
 	host, port, err := net.SplitHostPort(str)
 	if err != nil {
 		host, port, err = net.SplitHostPort(str + ":")
 		if err != nil {
-			return nil
+			return
 		}
 	}
 

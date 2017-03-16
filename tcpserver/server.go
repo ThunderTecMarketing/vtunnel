@@ -16,36 +16,34 @@ import (
 )
 
 var DefaultPort = 10010
-var serverType = "tunnel"
+var ServerType = "tunnel"
 
 var directives = []string{
-	"server",
 	"clients",
 }
 
 func init() {
 
-	caddy.RegisterServerType(serverType, caddy.ServerType{
+	caddy.RegisterServerType(ServerType, caddy.ServerType{
 		Directives: func() []string {
 			return directives
 		},
 		DefaultInput: func() caddy.Input {
 			return caddy.CaddyfileInput{
 				Contents:       []byte(fmt.Sprintf("0.0.0.0:%d {clients 12345678}", DefaultPort)),
-				ServerTypeName: serverType,
+				ServerTypeName: ServerType,
 			}
 		},
-		NewContext: new(tunnelContext),
+		NewContext: func() caddy.Context {
+			return new(tunnelContext)
+		},
 	})
 
-	caddy.RegisterPlugin(serverType, caddy.Plugin{
-		ServerType: "tunnel",
+	caddy.RegisterPlugin("clients", caddy.Plugin{
+		ServerType: ServerType,
 		Action:     SetupTunnelPlugin,
 	})
-
-
 	//caddy.RegisterCaddyfileLoader("short", caddy.LoaderFunc(shortCaddyfileLoader))
-
 }
 
 
@@ -151,6 +149,7 @@ func (s *Server) Serve(ln net.Listener) error {
 		}
 		tempDelay = 0
 
+		print(rw)
 		//c := srv.newConn(rw)
 		//c.setState(c.rwc, StateNew) // before Serve can return
 		//go c.serve(ctx)
