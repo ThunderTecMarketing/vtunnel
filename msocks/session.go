@@ -3,7 +3,6 @@ package msocks
 import (
 	"errors"
 	"fmt"
-	"io"
 	"net"
 	"sort"
 	"sync"
@@ -11,24 +10,22 @@ import (
 
 	"github.com/miekg/dns"
 	"github.com/FTwOoO/vpncore/net/conn"
+	"strconv"
 )
 
 type Session struct {
-	wlock    sync.Mutex
-	conn     conn.ObjectIO
+	conn        conn.ObjectIO
+	next_id     uint16
 
-	closed   bool
-	plock    sync.Mutex
-	next_id  uint16
-	streams  map[uint16]FrameSender
+	streamsLock sync.Mutex
+	streams     map[uint16]FrameSender
 
-	dialer   Dialer
+	dialer      Dialer
 }
 
-func NewSession(conn net.Conn) (s *Session) {
+func NewSession(conn conn.ObjectIO) (s *Session) {
 	s = &Session{
 		conn:     conn,
-		closed:   false,
 		streams:    make(map[uint16]FrameSender, 0),
 	}
 	log.Notice("session %s created.", s.String())
@@ -44,8 +41,8 @@ func (s *Session) GetSize() int {
 }
 
 func (s *Session) GetStreamById(id uint16) (FrameSender, error) {
-	s.plock.Lock()
-	defer s.plock.Unlock()
+	s.streamsLock.Lock()
+	defer s.streamsLock.Unlock()
 
 	c, ok := s.streams[id]
 	if !ok || c == nil {
@@ -55,8 +52,8 @@ func (s *Session) GetStreamById(id uint16) (FrameSender, error) {
 }
 
 func (s *Session) GetStreams() (ports []*Conn) {
-	s.plock.Lock()
-	defer s.plock.Unlock()
+	s.streamsLock.Lock()
+	defer s.streamsLock.Unlock()
 
 	for _, fs := range s.streams {
 		if c, ok := fs.(*Conn); ok {
@@ -66,56 +63,9 @@ func (s *Session) GetStreams() (ports []*Conn) {
 	return
 }
 
-type ConnSlice []*Conn
-
-func (cs ConnSlice) Len() int           { return len(cs) }
-func (cs ConnSlice) Swap(i, j int)      { cs[i], cs[j] = cs[j], cs[i] }
-func (cs ConnSlice) Less(i, j int) bool { return cs[i].streamid < cs[j].streamid }
-
-func (s *Session) GetSortedStreams() (ports ConnSlice) {
-	ports = s.GetStreams()
-	sort.Sort(ports)
-	return
-}
-
-func (s *Session) PutIntoNextId(fs FrameSender) (id uint16, err error) {
-	s.plock.Lock()
-	defer s.plock.Unlock()
-
-	startid := s.next_id
-	for _, ok := s.streams[s.next_id]; ok; _, ok = s.streams[s.next_id] {
-		s.next_id += 1
-		if s.next_id == startid {
-			err = errors.New("run out of stream id")
-			log.Error("%s", err)
-			return
-		}
-	}
-	id = s.next_id
-	s.next_id += 2
-	log.Debug("%s put into next id %d: %p.", s.String(), id, fs)
-
-	s.streams[id] = fs
-	return
-}
-
-func (s *Session) PutIntoId(id uint16, fs FrameSender) (err error) {
-	log.Debug("%s put into id %d: %p.", s.String(), id, fs)
-	s.plock.Lock()
-	defer s.plock.Unlock()
-
-	_, ok := s.streams[id]
-	if ok {
-		return ErrIdExist
-	}
-
-	s.streams[id] = fs
-	return
-}
-
 func (s *Session) RemoveStream(streamid uint16) (err error) {
-	s.plock.Lock()
-	defer s.plock.Unlock()
+	s.streamsLock.Lock()
+	defer s.streamsLock.Unlock()
 
 	_, ok := s.streams[streamid]
 	if !ok {
@@ -126,17 +76,72 @@ func (s *Session) RemoveStream(streamid uint16) (err error) {
 	return
 }
 
+type ConnSlice []*Conn
+
+func (cs ConnSlice) Len() int           { return len(cs) }
+func (cs ConnSlice) Swap(i, j int)      { cs[i], cs[j] = cs[j], cs[i] }
+func (cs ConnSlice) Less(i, j int) bool { return cs[i].streamId < cs[j].streamId
+}
+
+func (s *Session) GetSortedStreams() (ports ConnSlice) {
+	ports = s.GetStreams()
+	sort.Sort(ports)
+	return
+}
+
+func (s *Session) PutIntoNextId(fs FrameSender) (id uint16, err error) {
+	s.streamsLock.Lock()
+	defer s.streamsLock.Unlock()
+
+	startid := s.next_id
+	for  {
+
+		_, ok := s.streams[s.next_id]
+		if !ok {
+			break
+		}
+
+		s.next_id += 1
+		if s.next_id == startid {
+			err = errors.New("run out of stream id")
+			log.Error("%s", err)
+			return
+		}
+	}
+	id = s.next_id
+	s.next_id += 1
+	log.Debug("%s put into next id %d: %p.", s.String(), id, fs)
+
+	s.streams[id] = fs
+	return
+}
+
+func (s *Session) PutIntoId(id uint16, fs FrameSender) (err error) {
+	log.Debug("%s put into id %d: %p.", s.String(), id, fs)
+	s.streamsLock.Lock()
+	defer s.streamsLock.Unlock()
+
+	_, ok := s.streams[id]
+	if ok {
+		return ErrIdExist
+	}
+
+	s.streams[id] = fs
+	return
+}
+
+
+
 func (s *Session) Close() (err error) {
 	log.Warning("close all connects (%d) for session: %s.",
 		len(s.streams), s.String())
 	defer s.conn.Close()
-	s.plock.Lock()
-	defer s.plock.Unlock()
+	s.streamsLock.Lock()
+	defer s.streamsLock.Unlock()
 
 	for _, v := range s.streams {
 		v.CloseFrame()
 	}
-	s.closed = true
 	return
 }
 
@@ -163,10 +168,6 @@ func (s *Session) SendFrame(f Frame) (err error) {
 	}
 
 	return
-}
-
-func (s *Session) CloseFrame() error {
-	return s.Close()
 }
 
 func (s *Session) Run() {
@@ -208,7 +209,6 @@ func (s *Session) Run() {
 	}
 }
 
-// no drop, any error will reset main connection
 func (s *Session) sendFrameToStream(f Frame) (err error) {
 	streamid := f.GetStreamid()
 	c, err := s.GetStreamById(streamid)
@@ -223,28 +223,11 @@ func (s *Session) sendFrameToStream(f Frame) (err error) {
 	return nil
 }
 
-// ---- syn part ----
-
-func (s *Session) Dial(network, address string) (c *Conn, err error) {
-	c = NewConn(ST_SYN_SENT, 0, s, network, address)
-	streamid, err := s.PutIntoNextId(c)
-	if err != nil {
-		return
-	}
-	c.streamid = streamid
-
-	//log.Info("try dial %s => %s.", s.conn.RemoteAddr().String(), address)
-	err = c.WaitForConn()
-	if err != nil {
-		return
-	}
-
-	return c, nil
-}
 
 func (s *Session) on_syn(ft *FrameSyn) (err error) {
 	// lock streamid temporary, with status sync recved
-	c := NewConn(ST_SYN_RECV, ft.Streamid, s, ft.Network, ft.Address)
+	c := NewConn(ST_SYN_RECV, ft.Streamid, s, ft.Address)
+
 	err = s.PutIntoId(ft.Streamid, c)
 	if err != nil {
 		log.Error("%s", err)
@@ -296,105 +279,6 @@ func (s *Session) on_syn(ft *FrameSyn) (err error) {
 	return
 }
 
-// ---- syn part ended ----
-
-// ---- dns part ----
-
-func MakeDnsFrame(host string, t uint16, streamid uint16) (req *dns.Msg, f Frame, err error) {
-	log.Debug("make a dns query for %s.", host)
-
-	req = new(dns.Msg)
-	req.Id = dns.Id()
-	req.SetQuestion(dns.Fqdn(host), t)
-	req.RecursionDesired = true
-
-	b, err := req.Pack()
-	if err != nil {
-		return
-	}
-
-	f = &FrameDns{FrameBase.Streamid:streamid, Data:b}
-	return
-}
-
-func DebugDNS(r *dns.Msg, name string) {
-	straddr := ""
-	for _, a := range r.Answer {
-		switch ta := a.(type) {
-		case *dns.A:
-			straddr += ta.A.String() + ","
-		case *dns.AAAA:
-			straddr += ta.AAAA.String() + ","
-		}
-	}
-	log.Info("dns result for %s is %s.", name, straddr)
-	return
-}
-
-func ParseDnsFrame(f Frame, req *dns.Msg) (addrs []net.IP, err error) {
-	ft, ok := f.(*FrameDns)
-	if !ok {
-		return nil, ErrDnsMsgIllegal
-	}
-
-	res := new(dns.Msg)
-	err = res.Unpack(ft.Data)
-	if err != nil || !res.Response || res.Id != req.Id {
-		return nil, ErrDnsMsgIllegal
-	}
-
-	if DEBUGDNS {
-		DebugDNS(res, req.Question[0].Name)
-	}
-	for _, a := range res.Answer {
-		switch ta := a.(type) {
-		case *dns.A:
-			addrs = append(addrs, ta.A)
-		case *dns.AAAA:
-			addrs = append(addrs, ta.AAAA)
-		}
-	}
-	return
-}
-
-/*
-func (s *Session) LookupIP(host string) (addrs []net.IP, err error) {
-	ip := net.ParseIP(host)
-	if ip != nil {
-		return []net.IP{ip}, nil
-	}
-
-	cfs := CreateChanFrameSender(0)
-	streamid, err := s.PutIntoNextId(&cfs)
-	if err != nil {
-		return
-	}
-	defer func() {
-		err := s.RemoveStream(streamid)
-		if err != nil {
-			log.Error("%s", err.Error())
-		}
-	}()
-
-	req, freq, err := MakeDnsFrame(host, dns.TypeA, streamid)
-	if err != nil {
-		return
-	}
-
-	err = s.SendFrame(freq)
-	if err != nil {
-		return
-	}
-
-	fres, err := cfs.RecvWithTimeout(DNS_TIMEOUT * time.Second)
-	if err != nil {
-		return
-	}
-
-	addrs, err = ParseDnsFrame(fres, req)
-	return
-}
-*/
 
 func (s *Session) on_dns(ft *FrameDns) (err error) {
 	req := new(dns.Msg)
@@ -437,4 +321,69 @@ func (s *Session) on_dns(ft *FrameDns) (err error) {
 	return
 }
 
-// ---- dns part ended ----
+
+func (s *Session) Dial(network, address string) (c *Conn, err error) {
+	dst, portStr, err := net.SplitHostPort(address)
+	if err != nil {
+		return
+	}
+
+	port, err := strconv.Atoi(portStr)
+	if err != nil {
+		return
+	}
+
+	c = NewConn(ST_SYN_SENT, 0, s, ConnInfo{Network:network, DstHost:dst, DstPort:port})
+	streamid, err := s.PutIntoNextId(c)
+	if err != nil {
+		return
+	}
+	c.streamId = streamid
+
+	//log.Info("try dial %s => %s.", s.conn.RemoteAddr().String(), address)
+	err = c.WaitForConn()
+	if err != nil {
+		return
+	}
+
+	return c, nil
+}
+
+/*
+func (s *Session) LookupIP(host string) (addrs []net.IP, err error) {
+	ip := net.ParseIP(host)
+	if ip != nil {
+		return []net.IP{ip}, nil
+	}
+
+	cfs := CreateChanFrameSender(0)
+	streamid, err := s.PutIntoNextId(&cfs)
+	if err != nil {
+		return
+	}
+	defer func() {
+		err := s.RemoveStream(streamid)
+		if err != nil {
+			log.Error("%s", err.Error())
+		}
+	}()
+
+	req, freq, err := MakeDnsFrame(host, dns.TypeA, streamid)
+	if err != nil {
+		return
+	}
+
+	err = s.SendFrame(freq)
+	if err != nil {
+		return
+	}
+
+	fres, err := cfs.RecvWithTimeout(DNS_TIMEOUT * time.Second)
+	if err != nil {
+		return
+	}
+
+	addrs, err = ParseDnsFrame(fres, req)
+	return
+}
+*/

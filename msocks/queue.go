@@ -21,6 +21,18 @@ func NewQueue() (q *Queue) {
 	return
 }
 
+func (q *Queue) PushFront(v interface{}) (err error) {
+	q.lock.Lock()
+	defer q.lock.Unlock()
+	if q.closed {
+		return ErrQueueClosed
+	}
+
+	q.queue.PushFront(v)
+	q.ev.Signal()
+	return
+}
+
 func (q *Queue) Push(v interface{}) (err error) {
 	log.Debug("push queue: %p", q)
 	q.lock.Lock()

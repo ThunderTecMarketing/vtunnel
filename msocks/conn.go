@@ -14,41 +14,61 @@ const (
 	ST_SYN_RECV
 	ST_SYN_SENT
 	ST_EST
-	ST_CLOSE_WAIT
-	ST_FIN_WAIT
+	ST_FIN
 )
 
-type Conn struct {
-	lock        sync.Mutex
-	status      uint8
-	sess        *Session
-	streamid    uint16
-	sender      FrameSender
-	chSynResult chan uint32
-	Network     string
-	Address     string
-
-	rlock       sync.Mutex // this should used to block reader and reader, not writer
-	r_rest      []byte
-	rqueue      *Queue
-
-	wlock       sync.Mutex
+type ConnInfo struct {
+	Network string
+	SrcIp string
+	SrcPort uint16
+	DstHost string
+	DstPort uint16
 }
 
-func NewConn(status uint8, streamid uint16, sess *Session, network, address string) (c *Conn) {
+type Conn struct {
+	//The target
+	Address     ConnInfo
+
+	statusLock  sync.Mutex
+	status      uint8
+
+	session     *Session
+	streamId    uint16
+	sender      FrameSender
+
+	chSynResult chan uint32
+
+	rlock       sync.Mutex // this should used to block reader and reader, not writer
+	wlock       sync.Mutex
+
+	rqueue      *Queue
+}
+
+func NewConn(status uint8, streamid uint16, session *Session, address ConnInfo) (c *Conn) {
 	c = &Conn{
 		status:   status,
-		sess:     sess,
-		streamid: streamid,
-		sender:   sess,
-		Network:  network,
+		session:  session,
+		streamId: streamid,
+		sender:   session,
 		Address:  address,
 		rqueue:   NewQueue(),
 	}
 	return
 }
 
-func RecvWithTimeout(ch chan uint32, t time.Duration) (errno uint32) {
+func (c *Conn) GetStreamId() uint16 {
+	return c.streamId
+}
+
+func (c *Conn) GetAddress() (s string) {
+	return fmt.Sprintf("%s:%s", c.Network, c.Address)
+}
+
+func (c *Conn) String() (s string) {
+	return fmt.Sprintf("%d(%d)", c.session.LocalPort(), c.streamId)
+}
+
+func recvWithTimeout(ch chan uint32, t time.Duration) (errno uint32) {
 	var ok bool
 	ch_timeout := time.After(t)
 	select {
@@ -62,30 +82,18 @@ func RecvWithTimeout(ch chan uint32, t time.Duration) (errno uint32) {
 	return
 }
 
-func (c *Conn) GetStreamId() uint16 {
-	return c.streamid
-}
-
-func (c *Conn) GetAddress() (s string) {
-	return fmt.Sprintf("%s:%s", c.Network, c.Address)
-}
-
-func (c *Conn) String() (s string) {
-	return fmt.Sprintf("%d(%d)", c.sess.LocalPort(), c.streamid)
-}
-
 func (c *Conn) WaitForConn() (err error) {
 	c.chSynResult = make(chan uint32, 0)
 
-	fb := &FrameSyn{c.streamid, c.Network, c.Address}
-	err = c.sess.SendFrame(fb)
+	fb := &FrameSyn{c.streamId, c.Network, c.Address}
+	err = c.session.SendFrame(fb)
 	if err != nil {
 		log.Error("%s", err)
 		c.Final()
 		return
 	}
 
-	errno := RecvWithTimeout(c.chSynResult, DIAL_TIMEOUT*time.Second)
+	errno := recvWithTimeout(c.chSynResult, DIAL_TIMEOUT * time.Second)
 	if errno != ERR_NONE {
 		log.Error("remote connect %s failed for %d.", c.String(), errno)
 		c.Final()
@@ -100,7 +108,7 @@ func (c *Conn) WaitForConn() (err error) {
 func (c *Conn) Final() {
 	c.rqueue.Close()
 
-	err := c.sess.RemoveStream(c.streamid)
+	err := c.session.RemoveStream(c.streamId)
 	if err != nil {
 		log.Error("%s", err)
 	}
@@ -112,34 +120,16 @@ func (c *Conn) Final() {
 
 func (c *Conn) Close() (err error) {
 	log.Info("close %s.", c.String())
-	c.lock.Lock()
-	defer c.lock.Unlock()
+	c.statusLock.Lock()
+	defer c.statusLock.Unlock()
 
-	switch c.status {
-	case ST_UNKNOWN, ST_FIN_WAIT:
-		// maybe call close twice
+	fb := &FrameFin{FrameBase.Streamid: c.streamId}
+	err = c.sender.SendFrame(fb)
+	if err != nil {
+		log.Error("%s", err)
 		return
-	case ST_EST:
-		log.Info("%s closed from local.", c.String())
-		fb := &FrameFin{FrameBase.Streamid: c.streamid}
-		err = c.sender.SendFrame(fb)
-		if err != nil {
-			log.Error("%s", err)
-			return
-		}
-		c.status = ST_FIN_WAIT
-	case ST_CLOSE_WAIT:
-		fb := &FrameFin{FrameBase.Streamid: c.streamid}
-		err = c.sender.SendFrame(fb)
-		if err != nil {
-			log.Error("%s", err)
-			return
-		}
-		c.Final()
-	default:
-		log.Error("%s", ErrUnknownState.Error())
 	}
-
+	c.Final()
 	return
 }
 
@@ -164,8 +154,8 @@ func (c *Conn) SendFrame(f Frame) (err error) {
 }
 
 func (c *Conn) InSynResult(errno uint32) (err error) {
-	c.lock.Lock()
-	defer c.lock.Unlock()
+	c.statusLock.Lock()
+	defer c.statusLock.Unlock()
 
 	if c.status != ST_SYN_SENT {
 		return ErrNotSyn
@@ -198,32 +188,12 @@ func (c *Conn) InFin(ft *FrameFin) (err error) {
 	// coz fin means remote will never send data anymore
 	c.rqueue.Close()
 
-	c.lock.Lock()
-	defer c.lock.Unlock()
+	c.statusLock.Lock()
+	defer c.statusLock.Unlock()
 
-	switch c.status {
-	case ST_EST:
-		log.Info("%s closed from remote.", c.String())
-		// close read pipe but not sent fin back
-		// wait reader to close
-		c.status = ST_CLOSE_WAIT
-		return
-	case ST_FIN_WAIT:
-		// actually we don't need to *REALLY* wait 2MSL
-		// because tcp will make sure fin arrival
-		// don't need last ack or time wait to make sure that last ack will be received
-		c.Final()
-		// in final rqueue.close will be call again, that's ok
-		return
-	}
-	// error
-	return ErrFinState
-}
+	c.Final()
+	return
 
-func (c *Conn) CloseFrame() error {
-	// maybe conn closed
-	c.rqueue.Close()
-	return nil
 }
 
 func (c *Conn) Read(data []byte) (n int, err error) {
@@ -233,8 +203,11 @@ func (c *Conn) Read(data []byte) (n int, err error) {
 
 	target := data[:]
 	block := true
+
+	var r_rest = []byte(nil)
+
 	for len(target) > 0 {
-		if c.r_rest == nil {
+		if r_rest == nil {
 			// reader should be blocked in here
 			v, err = c.rqueue.Pop(block)
 			if err == ErrQueueClosed {
@@ -246,20 +219,24 @@ func (c *Conn) Read(data []byte) (n int, err error) {
 			if v == nil {
 				break
 			}
-			c.r_rest = v.([]byte)
+			r_rest = v.([]byte)
 		}
 
-		size := copy(target, c.r_rest)
+		size := copy(target, r_rest)
 		target = target[size:]
 		n += size
 		block = false
 
-		if len(c.r_rest) > size {
-			c.r_rest = c.r_rest[size:]
+		if len(r_rest) > size {
+			r_rest = r_rest[size:]
 		} else {
 			// take all data in rest
-			c.r_rest = nil
+			r_rest = nil
 		}
+	}
+
+	if r_rest != nil {
+		c.rqueue.PushFront(r_rest)
 	}
 
 	return
@@ -271,11 +248,12 @@ func (c *Conn) Write(data []byte) (n int, err error) {
 
 	for len(data) > 0 {
 		size := uint32(len(data))
-		// random size
+
+		//limit size < 4Kb
 		switch {
-		case size > 8*1024:
-			size = uint32(3*1024 + rand.Intn(1024))
-		case 4*1024 < size && size <= 8*1024:
+		case size > 8 * 1024:
+			size = uint32(3 * 1024 + rand.Intn(1024))
+		case 4 * 1024 < size && size <= 8 * 1024:
 			size /= 2
 		}
 
@@ -295,9 +273,9 @@ func (c *Conn) Write(data []byte) (n int, err error) {
 }
 
 func (c *Conn) WriteSlice(data []byte) (err error) {
-	f := &FrameData{FrameBase.Streamid:c.streamid, Data:data}
+	f := &FrameData{FrameBase.Streamid:c.streamId, Data:data}
 
-	if c.status != ST_EST && c.status != ST_CLOSE_WAIT {
+	if c.status != ST_EST {
 		log.Error("status %d found in write slice", c.status)
 		return ErrState
 	}
@@ -312,15 +290,17 @@ func (c *Conn) WriteSlice(data []byte) (err error) {
 
 func (c *Conn) LocalAddr() net.Addr {
 	return &Addr{
-		c.sess.LocalAddr(),
-		c.streamid,
+		Network:c.Address.Network,
+		Address:fmt.Sprintf("%s:%d", c.Address.SrcIp, c.Address.SrcPort),
+		c.streamId,
 	}
 }
 
 func (c *Conn) RemoteAddr() net.Addr {
 	return &Addr{
-		c.sess.RemoteAddr(),
-		c.streamid,
+		Network:c.Address.Network,
+		Address:fmt.Sprintf("%s:%d", c.Address.DstHost, c.Address.DstPort),
+		c.streamId,
 	}
 }
 
@@ -332,9 +312,7 @@ func (c *Conn) GetStatus() (st string) {
 		return "SYN_SENT"
 	case ST_EST:
 		return "ESTAB"
-	case ST_CLOSE_WAIT:
-		return "CLOSE_WAIT"
-	case ST_FIN_WAIT:
+	case ST_FIN:
 		return "FIN_WAIT"
 	}
 	return "UNKNOWN"
@@ -353,10 +331,15 @@ func (c *Conn) SetWriteDeadline(t time.Time) error {
 }
 
 type Addr struct {
-	net.Addr
+	Network string
+	Address string
 	streamid uint16
 }
 
-func (a *Addr) String() (s string) {
-	return fmt.Sprintf("%s:%d", a.Addr.String(), a.streamid)
+func (a *Addr) String() string {
+	return a.Address
+}
+
+func (a *Addr) Network() string {
+	return a.Network
 }

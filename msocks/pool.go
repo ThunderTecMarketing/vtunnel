@@ -1,42 +1,33 @@
 package msocks
 
 import (
-	"fmt"
 	"math/rand"
 	"net"
 	"sync"
-	"time"
-
-	"github.com/shell909090/goproxy/sutils"
 )
 
-type SessionFactory struct {
-	sutils.Dialer
-	serveraddr string
-	username   string
-	password   string
+type ClientDialerFactory struct {
+	ObjectDialer
+
 }
 
-func (sf *SessionFactory) CreateSession() (s *Session, err error) {
-	log.Notice("msocks try to connect %s.", sf.serveraddr)
-
-	conn, err := sf.Dialer.Dial("tcp", sf.serveraddr)
+func (sf *ClientDialerFactory) CreateSession() (s *Session, err error) {
+	conn, err := sf.ObjectDialer.Dial()
 	if err != nil {
 		return
 	}
-
 
 	s = NewSession(conn)
 	return
 }
 
 type SessionPool struct {
-	mu      sync.Mutex // sess pool locker
-	muf     sync.Mutex // factory locker
-	sess    map[*Session]struct{}
-	asfs    []*SessionFactory
-	MinSess int
-	MaxConn int
+	sessionsMu       sync.Mutex
+	factoryMu        sync.Mutex
+	sessions         map[*Session]struct{}
+	sessionFactories []*ClientDialerFactory
+	MinSess          int
+	MaxConn          int
 }
 
 func CreateSessionPool(MinSess, MaxConn int) (sp *SessionPool) {
@@ -47,81 +38,74 @@ func CreateSessionPool(MinSess, MaxConn int) (sp *SessionPool) {
 		MaxConn = 16
 	}
 	sp = &SessionPool{
-		sess:    make(map[*Session]struct{}, 0),
+		sessions:    make(map[*Session]struct{}, 0),
 		MinSess: MinSess,
 		MaxConn: MaxConn,
 	}
 	return
 }
 
-func (sp *SessionPool) AddSessionFactory(dialer sutils.Dialer, serveraddr, username, password string) {
-	sf := &SessionFactory{
-		Dialer:     dialer,
-		serveraddr: serveraddr,
-		username:   username,
-		password:   password,
-	}
-
-	sp.muf.Lock()
-	defer sp.muf.Unlock()
-	sp.asfs = append(sp.asfs, sf)
+func (sp *SessionPool) AddSessionFactory(sf ClientDialerFactory) {
+	sp.factoryMu.Lock()
+	defer sp.factoryMu.Unlock()
+	sp.sessionFactories = append(sp.sessionFactories, sf)
 }
 
-func (sp *SessionPool) CutAll() {
-	sp.mu.Lock()
-	defer sp.mu.Unlock()
-	for s, _ := range sp.sess {
+func (sp *SessionPool) CleanSessions() {
+	sp.sessionsMu.Lock()
+	defer sp.sessionsMu.Unlock()
+	for s, _ := range sp.sessions {
 		s.Close()
 	}
-	sp.sess = make(map[*Session]struct{}, 0)
+	sp.sessions = make(map[*Session]struct{}, 0)
 }
 
 func (sp *SessionPool) GetSize() int {
-	return len(sp.sess)
+	return len(sp.sessions)
 }
 
 func (sp *SessionPool) GetSessions() (sess map[*Session]struct{}) {
-	return sp.sess
+	return sp.sessions
 }
 
 func (sp *SessionPool) Add(s *Session) {
-	sp.mu.Lock()
-	defer sp.mu.Unlock()
-	sp.sess[s] = struct{}{}
+	sp.sessionsMu.Lock()
+	defer sp.sessionsMu.Unlock()
+	sp.sessions[s] = struct{}{}
 }
 
 func (sp *SessionPool) Remove(s *Session) (err error) {
-	sp.mu.Lock()
-	defer sp.mu.Unlock()
-	if _, ok := sp.sess[s]; !ok {
+	sp.sessionsMu.Lock()
+	defer sp.sessionsMu.Unlock()
+	if _, ok := sp.sessions[s]; !ok {
 		return ErrSessionNotFound
 	}
-	delete(sp.sess, s)
+	delete(sp.sessions, s)
 	return
 }
 
 func (sp *SessionPool) Get() (sess *Session, err error) {
-	if len(sp.sess) == 0 {
+	if len(sp.sessions) == 0 {
 		err = sp.createSession(func() bool {
-			return len(sp.sess) == 0
+			return len(sp.sessions) == 0
 		})
 		if err != nil {
 			return nil, err
 		}
 	}
 
-	sess, size := sp.getLessSess()
+	sess, size := sp.getLessUsedSession()
 	if sess == nil {
 		return nil, ErrNoSession
 	}
 
-	if size > sp.MaxConn || len(sp.sess) < sp.MinSess {
+	if size > sp.MaxConn || len(sp.sessions) < sp.MinSess {
 		go sp.createSession(func() bool {
-			if len(sp.sess) < sp.MinSess {
+			if len(sp.sessions) < sp.MinSess {
 				return true
 			}
 			// normally, size == -1 should never happen
-			_, size := sp.getLessSess()
+			_, size := sp.getLessUsedSession()
 			return size > sp.MaxConn
 		})
 	}
@@ -133,8 +117,8 @@ func (sp *SessionPool) Get() (sess *Session, err error) {
 // Each time it will take 2 ^ (net.ipv4.tcp_syn_retries + 1) - 1 second(s).
 // eg. net.ipv4.tcp_syn_retries = 4, connect will timeout in 2 ^ (4 + 1) -1 = 31s.
 func (sp *SessionPool) createSession(checker func() bool) (err error) {
-	sp.muf.Lock()
-	defer sp.muf.Unlock()
+	sp.factoryMu.Lock()
+	defer sp.factoryMu.Unlock()
 
 	if checker != nil && !checker() {
 		return
@@ -143,9 +127,9 @@ func (sp *SessionPool) createSession(checker func() bool) (err error) {
 	var sess *Session
 
 	start := rand.Int()
-	end := start + DIAL_RETRY*len(sp.asfs)
+	end := start + DIAL_RETRY*len(sp.sessionFactories)
 	for i := start; i < end; i++ {
-		asf := sp.asfs[i%len(sp.asfs)]
+		asf := sp.sessionFactories[i%len(sp.sessionFactories)]
 		sess, err = asf.CreateSession()
 		if err != nil {
 			log.Error("%s", err)
@@ -165,9 +149,9 @@ func (sp *SessionPool) createSession(checker func() bool) (err error) {
 	return
 }
 
-func (sp *SessionPool) getLessSess() (sess *Session, size int) {
+func (sp *SessionPool) getLessUsedSession() (sess *Session, size int) {
 	size = -1
-	for s, _ := range sp.sess {
+	for s, _ := range sp.sessions {
 		if size == -1 || s.GetSize() < size {
 			sess = s
 			size = s.GetSize()
@@ -183,22 +167,9 @@ func (sp *SessionPool) sessRun(sess *Session) {
 			log.Error("%s", err)
 			return
 		}
-
-		// if n < sp.MinSess && !sess.IsGameOver() {
-		// 	sp.createSession(func() bool {
-		// 		return len(sp.sess) < sp.MinSess
-		// 	})
-		// }
-
-		// Don't need to check less session here.
-		// Mostly, less sess counter in here will not more then the counter in GetOrCreateSess.
-		// The only exception is that the closing session is the one and only one
-		// lower then max_conn
-		// but we can think that as over max_conn line just happened.
 	}()
 
 	sess.Run()
-	// that's mean session is dead
 	log.Warning("session runtime quit, reboot from connect.")
 	return
 }
@@ -211,6 +182,7 @@ func (sp *SessionPool) Dial(network, address string) (net.Conn, error) {
 	return sess.Dial(network, address)
 }
 
+/*
 func (sp *SessionPool) LookupIP(host string) (addrs []net.IP, err error) {
 	sess, err := sp.Get()
 	if err != nil {
@@ -218,3 +190,4 @@ func (sp *SessionPool) LookupIP(host string) (addrs []net.IP, err error) {
 	}
 	return sess.LookupIP(host)
 }
+*/

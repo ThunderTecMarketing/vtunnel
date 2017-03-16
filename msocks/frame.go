@@ -77,8 +77,7 @@ func (z FrameData) Cmd() msgpack.MessageType {
 
 type FrameSyn struct {
 	*FrameBase
-	Network string
-	Address string
+	Address ConnInfo
 }
 
 func (z FrameSyn) Cmd() msgpack.MessageType {
