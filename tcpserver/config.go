@@ -8,9 +8,10 @@ package tcpserver
 import (
 	"time"
 	"errors"
+	"net"
 )
 
-var DefaultPrologue = "caddy-vpn"
+var DefaultPrologue = "vtunnel"
 var KeyLength = 16
 
 var DefaultPeerTimeout = time.Duration(30 * time.Second)
@@ -23,12 +24,17 @@ var ErrPacketLengthInvalid = errors.New("Packet length is not in (0,MTU]")
 var ErrWriteFail = errors.New("Write fail")
 
 
+type ServerListenerHandler func (net.Listener)
+
 type ServerConfig struct {
 	ListenHost string
 	ListenPort uint16
 
-	PublicKey        []byte
-	PrivateKey       []byte
-	ClientPublicKeys [][]byte
-	VPNPath      string
+	Clients map[string]string
+	Handler ServerListenerHandler
+
+}
+
+func NewServerConfig() *ServerConfig {
+	return &ServerConfig{Clients: make(map[string]string)}
 }

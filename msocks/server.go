@@ -3,6 +3,7 @@ package msocks
 import (
 	"errors"
 	"net"
+	"github.com/FTwOoO/vpncore/net/conn"
 )
 
 type MsocksServer struct {
@@ -10,7 +11,7 @@ type MsocksServer struct {
 	dialer   Dialer
 }
 
-func NewServer(dialer Dialer) (ms *MsocksServer, err error) {
+func NewMsocksServer(dialer Dialer) (ms *MsocksServer, err error) {
 	if dialer == nil {
 		err = errors.New("empty dialer")
 		log.Error("%s", err)
@@ -24,7 +25,7 @@ func NewServer(dialer Dialer) (ms *MsocksServer, err error) {
 	return
 }
 
-func (ms *MsocksServer) Handler(conn net.Conn) {
+func (ms *MsocksServer) Handler(conn conn.ObjectIO) {
 	log.Notice("connection come from: %s => %s.", conn.RemoteAddr(), conn.LocalAddr())
 
 	sess := NewSession(conn)
@@ -39,7 +40,7 @@ func (ms *MsocksServer) Handler(conn net.Conn) {
 		sess.LocalPort(), conn.RemoteAddr(), conn.LocalAddr())
 }
 
-func (ms *MsocksServer) Serve(listener net.Listener) (err error) {
+func (ms *MsocksServer) Serve(listener conn.ObjectListener) (err error) {
 	var conn net.Conn
 
 	for {

@@ -38,21 +38,16 @@ func init() {
 			return new(tunnelContext)
 		},
 	})
-
-	caddy.RegisterPlugin("clients", caddy.Plugin{
-		ServerType: ServerType,
-		Action:     SetupTunnelPlugin,
-	})
-	//caddy.RegisterCaddyfileLoader("short", caddy.LoaderFunc(shortCaddyfileLoader))
 }
+
 
 
 // Server is the HTTP server implementation.
 type Server struct {
 	listener    net.Listener
 	listenerMu  sync.Mutex
-	Addr        string
 	config      *ServerConfig
+
 	connTimeout time.Duration // max time to wait for a connection before force stop
 
 	doneChan    chan struct{}
@@ -68,7 +63,6 @@ var ErrServerClosed = errors.New("http: Server closed")
 // and will serve the sites configured in group.
 func NewServer(config *ServerConfig) (*Server, error) {
 	s := &Server{
-		Addr: fmt.Sprintf("%s:%d", config.ListenHost, config.ListenPort),
 		config:       config,
 		connTimeout: GracefulTimeout,
 		doneChan: make(chan struct{}),
@@ -82,7 +76,8 @@ func NewServer(config *ServerConfig) (*Server, error) {
 // used to serve requests.
 func (s *Server) Listen() (net.Listener, error) {
 
-	ln, err := net.Listen("tcp", s.Addr)
+	Addr := fmt.Sprintf("%s:%d", s.config.ListenHost, s.config.ListenPort)
+	ln, err := net.Listen("tcp", Addr)
 	if err != nil {
 		var succeeded bool
 		if runtime.GOOS == "windows" {
@@ -91,7 +86,7 @@ func (s *Server) Listen() (net.Listener, error) {
 			// in succession. TODO: Better way to handle this? And why limit this to Windows?
 			for i := 0; i < 20; i++ {
 				time.Sleep(100 * time.Millisecond)
-				ln, err = net.Listen("tcp", s.Addr)
+				ln, err = net.Listen("tcp", Addr)
 				if err == nil {
 					succeeded = true
 					break
@@ -122,8 +117,9 @@ func (s *Server) Serve(ln net.Listener) error {
 	s.listenerMu.Unlock()
 
 	var err error
-	var tempDelay time.Duration // how long to sleep on accept failure
 
+	/*
+	var tempDelay time.Duration // how long to sleep on accept failure
 	for {
 		rw, e := ln.Accept()
 		if e != nil {
@@ -154,7 +150,9 @@ func (s *Server) Serve(ln net.Listener) error {
 		//c.setState(c.rwc, StateNew) // before Serve can return
 		//go c.serve(ctx)
 	}
+	*/
 
+	s.config.Handler(ln)
 	return err
 }
 

@@ -36,6 +36,7 @@ func (h *tunnelContext) InspectServerBlocks(sourceFile string, serverBlocks []ca
 				cfg := &ServerConfig{
 					ListenHost: host,
 					ListenPort: uint16(port),
+					Clients: make(map[string]string),
 				}
 				h.saveConfig(key, cfg)
 			}
