@@ -11,6 +11,7 @@ import (
 	"github.com/miekg/dns"
 	"github.com/FTwOoO/vpncore/net/conn"
 	"strconv"
+	"github.com/FTwOoO/dnsrelay/dnsrelay"
 )
 
 type Session struct {
@@ -21,14 +22,16 @@ type Session struct {
 	streams     map[uint16]FrameSender
 
 	dialer      Dialer
+	dnsServer *dnsrelay.DNSServer
 }
 
-func NewSession(conn conn.ObjectIO) (s *Session) {
+func NewSession(conn conn.ObjectIO, dnsServer *dnsrelay.DNSServer) (s *Session) {
 	s = &Session{
 		conn:     conn,
+		dnsServer: dnsServer,
 		streams:    make(map[uint16]FrameSender, 0),
 	}
-	log.Notice("session %s created.", s.String())
+	log.Noticef("session %s created.", s.String())
 	return
 }
 
@@ -72,7 +75,7 @@ func (s *Session) RemoveStream(streamid uint16) (err error) {
 		return fmt.Errorf("streamid(%d) not exist.", streamid)
 	}
 	delete(s.streams, streamid)
-	log.Info("%s remove port %d.", s.String(), streamid)
+	log.Infof("%s remove port %d.", s.String(), streamid)
 	return
 }
 
@@ -104,20 +107,20 @@ func (s *Session) PutIntoNextId(fs FrameSender) (id uint16, err error) {
 		s.next_id += 1
 		if s.next_id == startid {
 			err = errors.New("run out of stream id")
-			log.Error("%s", err)
+			log.Errorf("%s", err)
 			return
 		}
 	}
 	id = s.next_id
 	s.next_id += 1
-	log.Debug("%s put into next id %d: %p.", s.String(), id, fs)
+	log.Debugf("%s put into next id %d: %p.", s.String(), id, fs)
 
 	s.streams[id] = fs
 	return
 }
 
 func (s *Session) PutIntoId(id uint16, fs FrameSender) (err error) {
-	log.Debug("%s put into id %d: %p.", s.String(), id, fs)
+	log.Debugf("%s put into id %d: %p.", s.String(), id, fs)
 	s.streamsLock.Lock()
 	defer s.streamsLock.Unlock()
 
@@ -133,8 +136,7 @@ func (s *Session) PutIntoId(id uint16, fs FrameSender) (err error) {
 
 
 func (s *Session) Close() (err error) {
-	log.Warning("close all connects (%d) for session: %s.",
-		len(s.streams), s.String())
+	log.Warningf("close all connects (%d) for session: %s.", len(s.streams), s.String())
 	defer s.conn.Close()
 	s.streamsLock.Lock()
 	defer s.streamsLock.Unlock()
@@ -176,31 +178,31 @@ func (s *Session) Run() {
 	for {
 		f, err := ReadFrame(s.conn)
 		if err != nil {
-			log.Error("%s", err)
+			log.Errorf("%s", err)
 			return
 		}
 
 		switch ft := f.(type) {
 		default:
-			log.Error("%s", ErrUnexpectedPkg.Error())
+			log.Errorf("%s", ErrUnexpectedPkg.Error())
 			return
 		case *FrameSynResult, *FrameData, *FrameFin, *FrameRst:
 			err = s.sendFrameToStream(f)
 			if err != nil {
-				log.Error("%s(%d) send failed, err: %s.",
+				log.Errorf("%s(%d) send failed, err: %s.",
 					s.String(), f.GetStreamId(), err.Error())
 				return
 			}
 		case *FrameSyn:
 			err = s.on_syn(ft)
 			if err != nil {
-				log.Error("syn failed: %s", err.Error())
+				log.Errorf("syn failed: %s", err.Error())
 				return
 			}
 		case *FrameDns:
 			err = s.on_dns(ft)
 			if err != nil {
-				log.Error("dns failed: %s", err.Error())
+				log.Errorf("dns failed: %s", err.Error())
 				return
 			}
 
@@ -229,7 +231,7 @@ func (s *Session) on_syn(ft *FrameSyn) (err error) {
 
 	err = s.PutIntoId(ft.GetStreamId(), c)
 	if err != nil {
-		log.Error("%s", err)
+		log.Errorf("%s", err)
 
 		fb := &FrameSynResult{StreamId:ft.GetStreamId(), Errno:ERR_IDEXIST}
 		err := s.SendFrame(fb)
@@ -247,7 +249,7 @@ func (s *Session) on_syn(ft *FrameSyn) (err error) {
 
 		var network = ft.Address.Network
 		var address = fmt.Sprintf("%s:%d", ft.Address.DstHost, ft.Address.DstPort)
-		log.Debug("try to connect %s => %s:%s.", c.String(), network, address)
+		log.Debugf("try to connect %s => %s:%s.", c.String(), network, address)
 
 		if dialer, ok := s.dialer.(*TcpDialer); ok {
 			conn, err = dialer.DialTimeout(network, address, DIAL_TIMEOUT*time.Second)
@@ -256,11 +258,11 @@ func (s *Session) on_syn(ft *FrameSyn) (err error) {
 		}
 
 		if err != nil {
-			log.Error("%s", err)
+			log.Errorf("%s", err)
 			fb := &FrameSynResult{StreamId:ft.GetStreamId(), Errno:ERR_CONNFAILED}
 			err = s.SendFrame(fb)
 			if err != nil {
-				log.Error("%s", err)
+				log.Errorf("%s", err)
 			}
 			c.Final()
 			return
@@ -269,15 +271,29 @@ func (s *Session) on_syn(ft *FrameSyn) (err error) {
 		fb := &FrameSynResult{StreamId:ft.GetStreamId(), Errno:ERR_NONE}
 		err = s.SendFrame(fb)
 		if err != nil {
-			log.Error("%s", err)
+			log.Errorf("%s", err)
 			return
 		}
 		c.status = ST_EST
 
 		go CopyLink(conn, c)
-		log.Notice("connected %s => %s.", c.String(), ft.Address.String())
+		log.Noticef("connected %s => %s.", c.String(), ft.Address.String())
 		return
 	}()
+	return
+}
+
+func (s *Session) writeDNS(ctx dnsrelay.QueryContext, m []byte) (err error) {
+	streamId, ok := ctx.(uint16)
+	if !ok {
+		return errors.New("Unexpected context")
+	}
+
+	fr := &FrameDns{StreamId:streamId, Data:m}
+	err = s.SendFrame(fr)
+	if err != nil {
+		log.Error(err)
+	}
 	return
 }
 
@@ -289,37 +305,7 @@ func (s *Session) on_dns(ft *FrameDns) (err error) {
 		return ErrDnsMsgIllegal
 	}
 
-	if req.Response {
-		// ignore send fail, maybe just timeout.
-		// should I log this ?
-		return s.sendFrameToStream(ft)
-	}
-
-	log.Info("dns query for %s.", req.Question[0].Name)
-
-	d, ok := DefaultLookuper.(*DnsLookup)
-	if !ok {
-		return ErrNoDnsServer
-	}
-	res, err := d.Exchange(req)
-	if err != nil {
-		log.Error("%s", err.Error())
-		return nil
-	}
-
-	if DEBUGDNS {
-		DebugDNS(res, req.Question[0].Name)
-	}
-
-	// send response back from streamid
-	b, err := res.Pack()
-	if err != nil {
-		log.Error("%s", ErrDnsMsgIllegal.Error())
-		return nil
-	}
-
-	fr := &FrameDns{StreamId:ft.GetStreamId(), Data:b}
-	err = s.SendFrame(fr)
+	s.dnsServer.QueryByDNSMsg(req, ft.GetStreamId(), dnsrelay.WriteHandler(s.writeDNS))
 	return
 }
 
@@ -350,42 +336,3 @@ func (s *Session) Dial(network, address string) (c *Conn, err error) {
 
 	return c, nil
 }
-
-/*
-func (s *Session) LookupIP(host string) (addrs []net.IP, err error) {
-	ip := net.ParseIP(host)
-	if ip != nil {
-		return []net.IP{ip}, nil
-	}
-
-	cfs := CreateChanFrameSender(0)
-	streamid, err := s.PutIntoNextId(&cfs)
-	if err != nil {
-		return
-	}
-	defer func() {
-		err := s.RemoveStream(streamid)
-		if err != nil {
-			log.Error("%s", err.Error())
-		}
-	}()
-
-	req, freq, err := MakeDnsFrame(host, dns.TypeA, streamid)
-	if err != nil {
-		return
-	}
-
-	err = s.SendFrame(freq)
-	if err != nil {
-		return
-	}
-
-	fres, err := cfs.RecvWithTimeout(DNS_TIMEOUT * time.Second)
-	if err != nil {
-		return
-	}
-
-	addrs, err = ParseDnsFrame(fres, req)
-	return
-}
-*/

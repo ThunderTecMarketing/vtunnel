@@ -18,9 +18,6 @@ import (
 var DefaultPort = 10010
 var ServerType = "tunnel"
 
-var directives = []string{
-	"clients",
-}
 
 func init() {
 

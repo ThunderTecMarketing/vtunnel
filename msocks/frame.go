@@ -5,7 +5,17 @@ import (
 	"github.com/FTwOoO/vpncore/net/conn"
 	"errors"
 	"fmt"
+	"reflect"
 )
+
+func init() {
+	msgpack.RegisterMessage(FrameSynResult{}.Cmd(), reflect.TypeOf(FrameSynResult{}))
+	msgpack.RegisterMessage(FrameData{}.Cmd(), reflect.TypeOf(FrameData{}))
+	msgpack.RegisterMessage(FrameSyn{}.Cmd(), reflect.TypeOf(FrameSyn{}))
+	msgpack.RegisterMessage(FrameFin{}.Cmd(), reflect.TypeOf(FrameFin{}))
+	msgpack.RegisterMessage(FrameRst{}.Cmd(), reflect.TypeOf(FrameRst{}))
+	msgpack.RegisterMessage(FrameDns{}.Cmd(), reflect.TypeOf(FrameDns{}))
+}
 
 const (
 	MSG_UNKNOWN msgpack.MessageType = 1
@@ -35,9 +45,7 @@ func (c *ConnInfo) String() (s string) {
 type Frame interface {
 	msgpack.Message
 	GetStreamId() uint16
-
 }
-
 
 type FrameSender interface {
 	SendFrame(Frame) error
@@ -45,7 +53,7 @@ type FrameSender interface {
 }
 
 func ReadFrame(r conn.ObjectIO) (Frame, error) {
-	obj, err :=  r.Read()
+	obj, err := r.Read()
 	if err != nil {
 		return nil, err
 	}
@@ -64,10 +72,9 @@ func ReadFrame(r conn.ObjectIO) (Frame, error) {
 //msgp:tuple ConnInfo FrameBase FrameResult FrameData FrameSyn FrameWnd FrameFin FrameRst FramePing FrameDns FrameSpam
 
 
-
 type FrameSynResult struct {
 	StreamId uint16
-	Errno uint32
+	Errno    uint32
 }
 
 func (f FrameSynResult) GetStreamId() uint16 {
@@ -80,7 +87,7 @@ func (z FrameSynResult) Cmd() msgpack.MessageType {
 
 type FrameData struct {
 	StreamId uint16
-	Data []byte
+	Data     []byte
 }
 
 func (f FrameData) GetStreamId() uint16 {
@@ -93,7 +100,7 @@ func (z FrameData) Cmd() msgpack.MessageType {
 
 type FrameSyn struct {
 	StreamId uint16
-	Address ConnInfo
+	Address  ConnInfo
 }
 
 func (f FrameSyn) GetStreamId() uint16 {
@@ -128,10 +135,9 @@ func (z FrameRst) Cmd() msgpack.MessageType {
 	return MSG_RST
 }
 
-
 type FrameDns struct {
 	StreamId uint16
-	Data []byte
+	Data     []byte
 }
 
 func (f FrameDns) GetStreamId() uint16 {

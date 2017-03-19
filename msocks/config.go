@@ -4,8 +4,7 @@ import (
 	"errors"
 	"math/rand"
 	"time"
-
-	logging "github.com/op/go-logging"
+	"github.com/FTwOoO/go-logger"
 )
 
 const (
@@ -46,7 +45,7 @@ var (
 )
 
 var (
-	log = logging.MustGetLogger("msocks")
+	log, _ = logger.NewLogger("", logger.DEBUG)
 )
 
 func init() {

@@ -81,17 +81,17 @@ func (c *Conn) WaitForConn() (err error) {
 	fb := &FrameSyn{StreamId:c.streamId, Address:c.Address}
 	err = c.session.SendFrame(fb)
 	if err != nil {
-		log.Error("%s", err)
+		log.Errorf("%s", err)
 		c.Final()
 		return
 	}
 
 	errno := recvWithTimeout(c.chSynResult, DIAL_TIMEOUT * time.Second)
 	if errno != ERR_NONE {
-		log.Error("remote connect %s failed for %d.", c.String(), errno)
+		log.Errorf("remote connect %s failed for %d.", c.String(), errno)
 		c.Final()
 	} else {
-		log.Notice("%s connected: %s.", c.Address.String(), c.String())
+		log.Noticef("%s connected: %s.", c.Address.String(), c.String())
 	}
 
 	c.chSynResult = nil
@@ -103,23 +103,23 @@ func (c *Conn) Final() {
 
 	err := c.session.RemoveStream(c.streamId)
 	if err != nil {
-		log.Error("%s", err)
+		log.Errorf("%s", err)
 	}
 
-	log.Notice("%s final.", c.String())
+	log.Noticef("%s final.", c.String())
 	c.status = ST_UNKNOWN
 	return
 }
 
 func (c *Conn) Close() (err error) {
-	log.Info("close %s.", c.String())
+	log.Infof("close %s.", c.String())
 	c.statusLock.Lock()
 	defer c.statusLock.Unlock()
 
 	fb := &FrameFin{StreamId: c.streamId}
 	err = c.session.SendFrame(fb)
 	if err != nil {
-		log.Error("%s", err)
+		log.Errorf("%s", err)
 		return
 	}
 	c.Final()
@@ -130,7 +130,7 @@ func (c *Conn) SendFrame(f Frame) (err error) {
 	switch ft := f.(type) {
 	default:
 		err = ErrUnexpectedPkg
-		log.Error("%s", err)
+		log.Errorf("%s", err)
 		c.Close()
 		return
 	case *FrameSynResult:
@@ -140,7 +140,7 @@ func (c *Conn) SendFrame(f Frame) (err error) {
 	case *FrameFin:
 		return c.InFin(ft)
 	case *FrameRst:
-		log.Debug("reset %s.", c.String())
+		log.Debugf("reset %s.", c.String())
 		c.Final()
 	}
 	return
@@ -174,7 +174,7 @@ func (c *Conn) InSynResult(errno uint32) (err error) {
 }
 
 func (c *Conn) InData(ft *FrameData) (err error) {
-	log.Info("%s recved %d bytes.", c.String(), len(ft.Data))
+	log.Infof("%s recved %d bytes.", c.String(), len(ft.Data))
 	err = c.rqueue.Push(ft.Data)
 	if err != nil {
 		return
@@ -259,15 +259,15 @@ func (c *Conn) Write(data []byte) (n int, err error) {
 		err = c.WriteSlice(data[:size])
 
 		if err != nil {
-			log.Error("%s", err)
+			log.Errorf("%s", err)
 			return
 		}
-		log.Debug("%s send chunk size %d at %d.", c.String(), size, n)
+		log.Debugf("%s send chunk size %d at %d.", c.String(), size, n)
 
 		data = data[size:]
 		n += int(size)
 	}
-	log.Info("%s sent %d bytes.", c.String(), n)
+	log.Infof("%s sent %d bytes.", c.String(), n)
 	return
 }
 
@@ -275,13 +275,13 @@ func (c *Conn) WriteSlice(data []byte) (err error) {
 	f := &FrameData{StreamId:c.streamId, Data:data}
 
 	if c.status != ST_EST {
-		log.Error("status %d found in write slice", c.status)
+		log.Errorf("status %d found in write slice", c.status)
 		return ErrState
 	}
 
 	err = c.session.SendFrame(f)
 	if err != nil {
-		log.Error("%s", err)
+		log.Errorf("%s", err)
 		return
 	}
 	return

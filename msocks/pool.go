@@ -17,7 +17,7 @@ func (sf *ClientDialerFactory) CreateSession() (s *Session, err error) {
 		return
 	}
 
-	s = NewSession(conn)
+	s = NewSession(conn, nil)
 	return
 }
 
@@ -132,17 +132,17 @@ func (sp *SessionPool) createSession(checker func() bool) (err error) {
 		asf := sp.sessionFactories[i%len(sp.sessionFactories)]
 		sess, err = asf.CreateSession()
 		if err != nil {
-			log.Error("%s", err)
+			log.Errorf("%s", err)
 			continue
 		}
 		break
 	}
 
 	if err != nil {
-		log.Critical("can't connect to any server, quit.")
+		log.Errorf("can't connect to any server, quit.")
 		return
 	}
-	log.Notice("session created.")
+	log.Noticef("session created.")
 
 	sp.Add(sess)
 	go sp.sessRun(sess)
@@ -164,7 +164,7 @@ func (sp *SessionPool) sessRun(sess *Session) {
 	defer func() {
 		err := sp.Remove(sess)
 		if err != nil {
-			log.Error("%s", err)
+			log.Errorf("%s", err)
 			return
 		}
 	}()

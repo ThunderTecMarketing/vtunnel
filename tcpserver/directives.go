@@ -11,6 +11,11 @@ import (
 	"github.com/FTwOoO/vtunnel/msocks"
 )
 
+var directives = []string{
+	"clients",
+	"transport",
+}
+
 func init() {
 
 	caddy.RegisterPlugin("clients", caddy.Plugin{
