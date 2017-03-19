@@ -2,8 +2,6 @@ package msocks
 
 import (
 	"github.com/FTwOoO/vpncore/net/conn/message/msgpack"
-	"github.com/FTwOoO/vpncore/net/conn"
-	"errors"
 	"fmt"
 	"reflect"
 )
@@ -47,26 +45,16 @@ type Frame interface {
 	GetStreamId() uint16
 }
 
+type FrameReceiver interface {
+	ReceiveFrame(Frame) error
+	CloseFrame() error
+}
+
 type FrameSender interface {
 	SendFrame(Frame) error
 	CloseFrame() error
 }
 
-func ReadFrame(r conn.ObjectIO) (Frame, error) {
-	obj, err := r.Read()
-	if err != nil {
-		return nil, err
-	}
-
-	var f Frame
-	var ok bool
-
-	if f, ok = obj.(Frame); !ok {
-		return nil, errors.New("Receive object that is not Frame")
-	}
-
-	return f, nil
-}
 
 //go:generate msgp
 //msgp:tuple ConnInfo FrameBase FrameResult FrameData FrameSyn FrameWnd FrameFin FrameRst FramePing FrameDns FrameSpam

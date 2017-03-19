@@ -1,8 +1,8 @@
 package tcpserver
 
 import (
-	"github.com/mholt/caddy"
 	"net"
+	"github.com/mholt/caddy"
 	"github.com/FTwOoO/vpncore/net/conn/stream/transport"
 	"github.com/FTwOoO/vpncore/net/conn/message/fragment"
 	"github.com/FTwOoO/vpncore/net/conn/message/ahead"
@@ -17,7 +17,6 @@ var directives = []string{
 }
 
 func init() {
-
 	caddy.RegisterPlugin("clients", caddy.Plugin{
 		ServerType: ServerType,
 		Action:     SetupClientsDirective,
@@ -37,7 +36,6 @@ func SetupClientsDirective(c *caddy.Controller) (err error) {
 	var clientkey string
 
 	if c.Next() {
-		print (c.Val())
 		args := c.RemainingArgs()
 		switch len(args) {
 		case 0:
@@ -58,7 +56,6 @@ func SetupClientsDirective(c *caddy.Controller) (err error) {
 
 	return
 }
-
 
 func SetupTransportDirective(c *caddy.Controller) error {
 	ctx := c.Context().(*tunnelContext)

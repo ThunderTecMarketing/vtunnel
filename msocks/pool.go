@@ -152,9 +152,9 @@ func (sp *SessionPool) createSession(checker func() bool) (err error) {
 func (sp *SessionPool) getLessUsedSession() (sess *Session, size int) {
 	size = -1
 	for s, _ := range sp.sessions {
-		if size == -1 || s.GetSize() < size {
+		if size == -1 || s.GetStreamsSize() < size {
 			sess = s
-			size = s.GetSize()
+			size = s.GetStreamsSize()
 		}
 	}
 	return

@@ -17,10 +17,8 @@ const (
 	ST_FIN
 )
 
-
-
-
 type Conn struct {
+	//net.Conn
 	//The target
 	Address     ConnInfo
 
@@ -53,146 +51,8 @@ func (c *Conn) GetStreamId() uint16 {
 	return c.streamId
 }
 
-func (c *Conn) GetAddress() (s string) {
-	return fmt.Sprintf("%s:%s:%d", c.Address.Network, c.Address.DstHost, c.Address.DstPort)
-}
-
 func (c *Conn) String() (s string) {
-	return fmt.Sprintf("%d(%d)", c.session.LocalPort(), c.streamId)
-}
-
-func recvWithTimeout(ch chan uint32, t time.Duration) (errno uint32) {
-	var ok bool
-	ch_timeout := time.After(t)
-	select {
-	case errno, ok = <-ch:
-		if !ok {
-			return ERR_CLOSED
-		}
-	case <-ch_timeout:
-		return ERR_TIMEOUT
-	}
-	return
-}
-
-func (c *Conn) WaitForConn() (err error) {
-	c.chSynResult = make(chan uint32, 0)
-
-	fb := &FrameSyn{StreamId:c.streamId, Address:c.Address}
-	err = c.session.SendFrame(fb)
-	if err != nil {
-		log.Errorf("%s", err)
-		c.Final()
-		return
-	}
-
-	errno := recvWithTimeout(c.chSynResult, DIAL_TIMEOUT * time.Second)
-	if errno != ERR_NONE {
-		log.Errorf("remote connect %s failed for %d.", c.String(), errno)
-		c.Final()
-	} else {
-		log.Noticef("%s connected: %s.", c.Address.String(), c.String())
-	}
-
-	c.chSynResult = nil
-	return
-}
-
-func (c *Conn) Final() {
-	c.rqueue.Close()
-
-	err := c.session.RemoveStream(c.streamId)
-	if err != nil {
-		log.Errorf("%s", err)
-	}
-
-	log.Noticef("%s final.", c.String())
-	c.status = ST_UNKNOWN
-	return
-}
-
-func (c *Conn) Close() (err error) {
-	log.Infof("close %s.", c.String())
-	c.statusLock.Lock()
-	defer c.statusLock.Unlock()
-
-	fb := &FrameFin{StreamId: c.streamId}
-	err = c.session.SendFrame(fb)
-	if err != nil {
-		log.Errorf("%s", err)
-		return
-	}
-	c.Final()
-	return
-}
-
-func (c *Conn) SendFrame(f Frame) (err error) {
-	switch ft := f.(type) {
-	default:
-		err = ErrUnexpectedPkg
-		log.Errorf("%s", err)
-		c.Close()
-		return
-	case *FrameSynResult:
-		return c.InSynResult(ft.Errno)
-	case *FrameData:
-		return c.InData(ft)
-	case *FrameFin:
-		return c.InFin(ft)
-	case *FrameRst:
-		log.Debugf("reset %s.", c.String())
-		c.Final()
-	}
-	return
-}
-
-func (c *Conn) CloseFrame() error {
-	// maybe conn closed
-	c.Final()
-	return nil
-}
-
-func (c *Conn) InSynResult(errno uint32) (err error) {
-	c.statusLock.Lock()
-	defer c.statusLock.Unlock()
-
-	if c.status != ST_SYN_SENT {
-		return ErrNotSyn
-	}
-
-	if errno == ERR_NONE {
-		c.status = ST_EST
-	} else {
-		c.Final()
-	}
-
-	select {
-	case c.chSynResult <- errno:
-	default:
-	}
-	return
-}
-
-func (c *Conn) InData(ft *FrameData) (err error) {
-	log.Infof("%s recved %d bytes.", c.String(), len(ft.Data))
-	err = c.rqueue.Push(ft.Data)
-	if err != nil {
-		return
-	}
-	return
-}
-
-func (c *Conn) InFin(ft *FrameFin) (err error) {
-	// always need to close read pipe
-	// coz fin means remote will never send data anymore
-	c.rqueue.Close()
-
-	c.statusLock.Lock()
-	defer c.statusLock.Unlock()
-
-	c.Final()
-	return
-
+	return fmt.Sprintf("Connection(%d)", c.streamId)
 }
 
 func (c *Conn) Read(data []byte) (n int, err error) {
@@ -256,7 +116,7 @@ func (c *Conn) Write(data []byte) (n int, err error) {
 			size /= 2
 		}
 
-		err = c.WriteSlice(data[:size])
+		err = c.writeSlice(data[:size])
 
 		if err != nil {
 			log.Errorf("%s", err)
@@ -271,7 +131,7 @@ func (c *Conn) Write(data []byte) (n int, err error) {
 	return
 }
 
-func (c *Conn) WriteSlice(data []byte) (err error) {
+func (c *Conn) writeSlice(data []byte) (err error) {
 	f := &FrameData{StreamId:c.streamId, Data:data}
 
 	if c.status != ST_EST {
@@ -284,6 +144,34 @@ func (c *Conn) WriteSlice(data []byte) (err error) {
 		log.Errorf("%s", err)
 		return
 	}
+	return
+}
+
+func (c *Conn) final() {
+	c.rqueue.Close()
+
+	err := c.session.RemoveStream(c.streamId)
+	if err != nil {
+		log.Errorf("%s", err)
+	}
+
+	log.Noticef("%s final.", c.String())
+	c.status = ST_UNKNOWN
+	return
+}
+
+func (c *Conn) Close() (err error) {
+	log.Infof("close %s.", c.String())
+	c.statusLock.Lock()
+	defer c.statusLock.Unlock()
+
+	fb := &FrameFin{StreamId: c.streamId}
+	err = c.session.SendFrame(fb)
+	if err != nil {
+		log.Errorf("%s", err)
+		return
+	}
+	c.final()
 	return
 }
 
@@ -303,6 +191,18 @@ func (c *Conn) RemoteAddr() net.Addr {
 	}
 }
 
+func (c *Conn) SetDeadline(t time.Time) error {
+	return nil
+}
+
+func (c *Conn) SetReadDeadline(t time.Time) error {
+	return nil
+}
+
+func (c *Conn) SetWriteDeadline(t time.Time) error {
+	return nil
+}
+
 func (c *Conn) GetStatus() (st string) {
 	switch c.status {
 	case ST_SYN_RECV:
@@ -317,17 +217,6 @@ func (c *Conn) GetStatus() (st string) {
 	return "UNKNOWN"
 }
 
-func (c *Conn) SetDeadline(t time.Time) error {
-	return nil
-}
-
-func (c *Conn) SetReadDeadline(t time.Time) error {
-	return nil
-}
-
-func (c *Conn) SetWriteDeadline(t time.Time) error {
-	return nil
-}
 
 type Addr struct {
 	NetworkType string
