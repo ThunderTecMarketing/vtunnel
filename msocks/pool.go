@@ -45,7 +45,7 @@ func CreateSessionPool(MinSess, MaxConn int) (sp *SessionPool) {
 	return
 }
 
-func (sp *SessionPool) AddSessionFactory(sf ClientDialerFactory) {
+func (sp *SessionPool) AddSessionFactory(sf *ClientDialerFactory) {
 	sp.factoryMu.Lock()
 	defer sp.factoryMu.Unlock()
 	sp.sessionFactories = append(sp.sessionFactories, sf)

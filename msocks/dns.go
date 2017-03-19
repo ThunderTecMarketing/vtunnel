@@ -106,7 +106,7 @@ func MakeDnsFrame(host string, t uint16, streamid uint16) (req *dns.Msg, f Frame
 		return
 	}
 
-	f = &FrameDns{FrameBase.Streamid:streamid, Data:b}
+	f = &FrameDns{StreamId:streamid, Data:b}
 	return
 }
 

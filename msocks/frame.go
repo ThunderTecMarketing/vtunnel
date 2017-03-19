@@ -4,6 +4,7 @@ import (
 	"github.com/FTwOoO/vpncore/net/conn/message/msgpack"
 	"github.com/FTwOoO/vpncore/net/conn"
 	"errors"
+	"fmt"
 )
 
 const (
@@ -19,10 +20,24 @@ const (
 	MSG_SPAM msgpack.MessageType = 11
 )
 
-type Frame interface {
-	GetStreamid() uint16
-	msgpack.Message
+type ConnInfo struct {
+	Network string
+	SrcHost string
+	SrcPort uint16
+	DstHost string
+	DstPort uint16
 }
+
+func (c *ConnInfo) String() (s string) {
+	return fmt.Sprintf("%s [%s:%d]->[%s:%d]", c.Network, c.SrcHost, c.SrcPort, c.DstHost, c.DstPort)
+}
+
+type Frame interface {
+	msgpack.Message
+	GetStreamId() uint16
+
+}
+
 
 type FrameSender interface {
 	SendFrame(Frame) error
@@ -46,20 +61,17 @@ func ReadFrame(r conn.ObjectIO) (Frame, error) {
 }
 
 //go:generate msgp
-//msgp:tuple FrameBase FrameResult FrameData FrameSyn FrameWnd FrameFin FrameRst FramePing FrameDns FrameSpam
+//msgp:tuple ConnInfo FrameBase FrameResult FrameData FrameSyn FrameWnd FrameFin FrameRst FramePing FrameDns FrameSpam
 
 
-type FrameBase struct {
-	Streamid uint16
-}
-
-func (f FrameBase) GetStreamid() uint16 {
-	return f.Streamid
-}
 
 type FrameSynResult struct {
-	*FrameBase
+	StreamId uint16
 	Errno uint32
+}
+
+func (f FrameSynResult) GetStreamId() uint16 {
+	return f.StreamId
 }
 
 func (z FrameSynResult) Cmd() msgpack.MessageType {
@@ -67,8 +79,12 @@ func (z FrameSynResult) Cmd() msgpack.MessageType {
 }
 
 type FrameData struct {
-	*FrameBase
+	StreamId uint16
 	Data []byte
+}
+
+func (f FrameData) GetStreamId() uint16 {
+	return f.StreamId
 }
 
 func (z FrameData) Cmd() msgpack.MessageType {
@@ -76,8 +92,12 @@ func (z FrameData) Cmd() msgpack.MessageType {
 }
 
 type FrameSyn struct {
-	*FrameBase
+	StreamId uint16
 	Address ConnInfo
+}
+
+func (f FrameSyn) GetStreamId() uint16 {
+	return f.StreamId
 }
 
 func (z FrameSyn) Cmd() msgpack.MessageType {
@@ -85,7 +105,11 @@ func (z FrameSyn) Cmd() msgpack.MessageType {
 }
 
 type FrameFin struct {
-	*FrameBase
+	StreamId uint16
+}
+
+func (f FrameFin) GetStreamId() uint16 {
+	return f.StreamId
 }
 
 func (z FrameFin) Cmd() msgpack.MessageType {
@@ -93,35 +117,27 @@ func (z FrameFin) Cmd() msgpack.MessageType {
 }
 
 type FrameRst struct {
-	*FrameBase
+	StreamId uint16
+}
+
+func (f FrameRst) GetStreamId() uint16 {
+	return f.StreamId
 }
 
 func (z FrameRst) Cmd() msgpack.MessageType {
 	return MSG_RST
 }
 
-type FramePing struct {
-	*FrameBase
-}
-
-func (z FramePing) Cmd() msgpack.MessageType {
-	return MSG_PING
-}
 
 type FrameDns struct {
-	*FrameBase
+	StreamId uint16
 	Data []byte
+}
+
+func (f FrameDns) GetStreamId() uint16 {
+	return f.StreamId
 }
 
 func (z FrameDns) Cmd() msgpack.MessageType {
 	return MSG_DNS
-}
-
-type FrameSpam struct {
-	*FrameBase
-	Data []byte
-}
-
-func (z FrameSpam) Cmd() msgpack.MessageType {
-	return MSG_SPAM
 }

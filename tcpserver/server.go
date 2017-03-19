@@ -152,7 +152,7 @@ func (s *Server) Serve(ln net.Listener) error {
 	}
 	*/
 
-	s.config.Handler(ln)
+	err = s.config.Handler(ln)
 	return err
 }
 
@@ -166,7 +166,7 @@ func (s *Server) ServePacket(pc net.PacketConn) error {
 
 // Address returns the address s was assigned to listen on.
 func (s *Server) Address() string {
-	return s.Addr
+	return fmt.Sprintf("%s:%d", s.config.ListenHost, s.config.ListenPort)
 }
 
 // Stop stops s gracefully (or forcefully after timeout) and

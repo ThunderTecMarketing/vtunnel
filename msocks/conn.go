@@ -17,13 +17,8 @@ const (
 	ST_FIN
 )
 
-type ConnInfo struct {
-	Network string
-	SrcIp string
-	SrcPort uint16
-	DstHost string
-	DstPort uint16
-}
+
+
 
 type Conn struct {
 	//The target
@@ -34,7 +29,6 @@ type Conn struct {
 
 	session     *Session
 	streamId    uint16
-	sender      FrameSender
 
 	chSynResult chan uint32
 
@@ -49,7 +43,6 @@ func NewConn(status uint8, streamid uint16, session *Session, address ConnInfo) 
 		status:   status,
 		session:  session,
 		streamId: streamid,
-		sender:   session,
 		Address:  address,
 		rqueue:   NewQueue(),
 	}
@@ -61,7 +54,7 @@ func (c *Conn) GetStreamId() uint16 {
 }
 
 func (c *Conn) GetAddress() (s string) {
-	return fmt.Sprintf("%s:%s", c.Network, c.Address)
+	return fmt.Sprintf("%s:%s:%d", c.Address.Network, c.Address.DstHost, c.Address.DstPort)
 }
 
 func (c *Conn) String() (s string) {
@@ -85,7 +78,7 @@ func recvWithTimeout(ch chan uint32, t time.Duration) (errno uint32) {
 func (c *Conn) WaitForConn() (err error) {
 	c.chSynResult = make(chan uint32, 0)
 
-	fb := &FrameSyn{c.streamId, c.Network, c.Address}
+	fb := &FrameSyn{StreamId:c.streamId, Address:c.Address}
 	err = c.session.SendFrame(fb)
 	if err != nil {
 		log.Error("%s", err)
@@ -98,7 +91,7 @@ func (c *Conn) WaitForConn() (err error) {
 		log.Error("remote connect %s failed for %d.", c.String(), errno)
 		c.Final()
 	} else {
-		log.Notice("%s connected: %s => %s.", c.Network, c.String(), c.Address)
+		log.Notice("%s connected: %s.", c.Address.String(), c.String())
 	}
 
 	c.chSynResult = nil
@@ -123,8 +116,8 @@ func (c *Conn) Close() (err error) {
 	c.statusLock.Lock()
 	defer c.statusLock.Unlock()
 
-	fb := &FrameFin{FrameBase.Streamid: c.streamId}
-	err = c.sender.SendFrame(fb)
+	fb := &FrameFin{StreamId: c.streamId}
+	err = c.session.SendFrame(fb)
 	if err != nil {
 		log.Error("%s", err)
 		return
@@ -151,6 +144,12 @@ func (c *Conn) SendFrame(f Frame) (err error) {
 		c.Final()
 	}
 	return
+}
+
+func (c *Conn) CloseFrame() error {
+	// maybe conn closed
+	c.Final()
+	return nil
 }
 
 func (c *Conn) InSynResult(errno uint32) (err error) {
@@ -273,14 +272,14 @@ func (c *Conn) Write(data []byte) (n int, err error) {
 }
 
 func (c *Conn) WriteSlice(data []byte) (err error) {
-	f := &FrameData{FrameBase.Streamid:c.streamId, Data:data}
+	f := &FrameData{StreamId:c.streamId, Data:data}
 
 	if c.status != ST_EST {
 		log.Error("status %d found in write slice", c.status)
 		return ErrState
 	}
 
-	err = c.sender.SendFrame(f)
+	err = c.session.SendFrame(f)
 	if err != nil {
 		log.Error("%s", err)
 		return
@@ -290,17 +289,17 @@ func (c *Conn) WriteSlice(data []byte) (err error) {
 
 func (c *Conn) LocalAddr() net.Addr {
 	return &Addr{
-		Network:c.Address.Network,
-		Address:fmt.Sprintf("%s:%d", c.Address.SrcIp, c.Address.SrcPort),
-		c.streamId,
+		NetworkType:c.Address.Network,
+		Address:fmt.Sprintf("%s:%d", c.Address.SrcHost, c.Address.SrcPort),
+		Streamid:c.streamId,
 	}
 }
 
 func (c *Conn) RemoteAddr() net.Addr {
 	return &Addr{
-		Network:c.Address.Network,
+		NetworkType:c.Address.Network,
 		Address:fmt.Sprintf("%s:%d", c.Address.DstHost, c.Address.DstPort),
-		c.streamId,
+		Streamid:c.streamId,
 	}
 }
 
@@ -331,9 +330,9 @@ func (c *Conn) SetWriteDeadline(t time.Time) error {
 }
 
 type Addr struct {
-	Network string
-	Address string
-	streamid uint16
+	NetworkType string
+	Address     string
+	Streamid    uint16
 }
 
 func (a *Addr) String() string {
@@ -341,5 +340,5 @@ func (a *Addr) String() string {
 }
 
 func (a *Addr) Network() string {
-	return a.Network
+	return a.NetworkType
 }

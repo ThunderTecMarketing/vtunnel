@@ -4,6 +4,7 @@ import (
 	"github.com/mholt/caddy"
 	"strconv"
 	"encoding/hex"
+	"net"
 )
 
 func StringArg(c *caddy.Controller) (string, error) {

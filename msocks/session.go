@@ -188,7 +188,7 @@ func (s *Session) Run() {
 			err = s.sendFrameToStream(f)
 			if err != nil {
 				log.Error("%s(%d) send failed, err: %s.",
-					s.String(), f.GetStreamid(), err.Error())
+					s.String(), f.GetStreamId(), err.Error())
 				return
 			}
 		case *FrameSyn:
@@ -203,14 +203,13 @@ func (s *Session) Run() {
 				log.Error("dns failed: %s", err.Error())
 				return
 			}
-		case *FramePing:
-		case *FrameSpam:
+
 		}
 	}
 }
 
 func (s *Session) sendFrameToStream(f Frame) (err error) {
-	streamid := f.GetStreamid()
+	streamid := f.GetStreamId()
 	c, err := s.GetStreamById(streamid)
 	if err != nil {
 		return err
@@ -226,13 +225,13 @@ func (s *Session) sendFrameToStream(f Frame) (err error) {
 
 func (s *Session) on_syn(ft *FrameSyn) (err error) {
 	// lock streamid temporary, with status sync recved
-	c := NewConn(ST_SYN_RECV, ft.Streamid, s, ft.Address)
+	c := NewConn(ST_SYN_RECV, ft.GetStreamId(), s, ft.Address)
 
-	err = s.PutIntoId(ft.Streamid, c)
+	err = s.PutIntoId(ft.GetStreamId(), c)
 	if err != nil {
 		log.Error("%s", err)
 
-		fb := &FrameSynResult{FrameBase.Streamid:ft.Streamid, Errno:ERR_IDEXIST}
+		fb := &FrameSynResult{StreamId:ft.GetStreamId(), Errno:ERR_IDEXIST}
 		err := s.SendFrame(fb)
 		if err != nil {
 			return err
@@ -258,7 +257,7 @@ func (s *Session) on_syn(ft *FrameSyn) (err error) {
 
 		if err != nil {
 			log.Error("%s", err)
-			fb := &FrameSynResult{FrameBase.Streamid:ft.Streamid, Errno:ERR_CONNFAILED}
+			fb := &FrameSynResult{StreamId:ft.GetStreamId(), Errno:ERR_CONNFAILED}
 			err = s.SendFrame(fb)
 			if err != nil {
 				log.Error("%s", err)
@@ -267,7 +266,7 @@ func (s *Session) on_syn(ft *FrameSyn) (err error) {
 			return
 		}
 
-		fb := &FrameSynResult{FrameBase.Streamid:ft.Streamid, Errno:ERR_NONE}
+		fb := &FrameSynResult{StreamId:ft.GetStreamId(), Errno:ERR_NONE}
 		err = s.SendFrame(fb)
 		if err != nil {
 			log.Error("%s", err)
@@ -276,7 +275,7 @@ func (s *Session) on_syn(ft *FrameSyn) (err error) {
 		c.status = ST_EST
 
 		go CopyLink(conn, c)
-		log.Notice("connected %s => %s:%s.", c.String(), ft.Network, ft.Address)
+		log.Notice("connected %s => %s.", c.String(), ft.Address.String())
 		return
 	}()
 	return
@@ -319,7 +318,7 @@ func (s *Session) on_dns(ft *FrameDns) (err error) {
 		return nil
 	}
 
-	fr := &FrameDns{FrameBase.Streamid:ft.GetStreamid(), Data:b}
+	fr := &FrameDns{StreamId:ft.GetStreamId(), Data:b}
 	err = s.SendFrame(fr)
 	return
 }
@@ -336,7 +335,7 @@ func (s *Session) Dial(network, address string) (c *Conn, err error) {
 		return
 	}
 
-	c = NewConn(ST_SYN_SENT, 0, s, ConnInfo{Network:network, DstHost:dst, DstPort:port})
+	c = NewConn(ST_SYN_SENT, 0, s, ConnInfo{Network:network, DstHost:dst, DstPort:uint16(port)})
 	streamid, err := s.PutIntoNextId(c)
 	if err != nil {
 		return

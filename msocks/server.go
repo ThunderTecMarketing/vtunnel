@@ -2,7 +2,6 @@ package msocks
 
 import (
 	"errors"
-	"net"
 	"github.com/FTwOoO/vpncore/net/conn"
 )
 
@@ -26,7 +25,7 @@ func NewMsocksServer(dialer Dialer) (ms *MsocksServer, err error) {
 }
 
 func (ms *MsocksServer) Handler(conn conn.ObjectIO) {
-	log.Notice("connection come from: %s => %s.", conn.RemoteAddr(), conn.LocalAddr())
+	//log.Notice("connection come from: %s => %s.", conn.RemoteAddr(), conn.LocalAddr())
 
 	sess := NewSession(conn)
 	sess.next_id = 1
@@ -36,12 +35,11 @@ func (ms *MsocksServer) Handler(conn conn.ObjectIO) {
 	defer ms.Remove(sess)
 	sess.Run()
 
-	log.Notice("server session %d quit: %s => %s.",
-		sess.LocalPort(), conn.RemoteAddr(), conn.LocalAddr())
+	//log.Notice("server session %d quit: %s => %s.", sess.LocalPort(), conn.RemoteAddr(), conn.LocalAddr())
 }
 
 func (ms *MsocksServer) Serve(listener conn.ObjectListener) (err error) {
-	var conn net.Conn
+	var conn conn.ObjectIO
 
 	for {
 		conn, err = listener.Accept()

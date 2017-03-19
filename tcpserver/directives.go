@@ -38,7 +38,7 @@ func SetupClientsDirective(c *caddy.Controller) (err error) {
 		case 0:
 			break
 		default:
-			return nil, c.ArgErr()
+			return c.ArgErr()
 		}
 
 		for c.NextBlock() {
@@ -59,7 +59,7 @@ func SetupTransportDirective(c *caddy.Controller) error {
 	ctx := c.Context().(*tunnelContext)
 	config := ctx.keysToConfigs[c.Key]
 
-	config.Handler = func (ln net.Listener) {
+	config.Handler = func (ln net.Listener) error {
 		context1 := &transport.TransportStreamContext2{
 			Listener: ln,
 		}
@@ -80,7 +80,8 @@ func SetupTransportDirective(c *caddy.Controller) error {
 			return err
 		}
 
-		msocksServer.Serve(listener)
+		return msocksServer.Serve(listener)
+
 	}
 
 	return nil

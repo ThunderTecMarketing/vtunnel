@@ -24,7 +24,7 @@ var ErrPacketLengthInvalid = errors.New("Packet length is not in (0,MTU]")
 var ErrWriteFail = errors.New("Write fail")
 
 
-type ServerListenerHandler func (net.Listener)
+type ServerListenerHandler func (net.Listener) error
 
 type ServerConfig struct {
 	ListenHost string
