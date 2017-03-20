@@ -10,6 +10,7 @@ import (
 	"github.com/miekg/dns"
 	"github.com/FTwOoO/vpncore/net/conn"
 	"github.com/FTwOoO/dnsrelay/dnsrelay"
+	"github.com/FTwOoO/vtunnel/util"
 )
 
 type Session struct {
@@ -160,7 +161,7 @@ func (s *Session) on_syn(ft *FrameSyn) (err error) {
 		}
 		c.status = ST_EST
 
-		go CopyLink(conn, c)
+		go util.CopyLink(conn, c)
 		log.Noticef("connected %s => %s.", c.String(), ft.Address.String())
 		return
 	}()

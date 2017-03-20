@@ -31,7 +31,6 @@ var (
 	ErrAuthFailed      = errors.New("auth failed.")
 	ErrAuthTimeout     = errors.New("auth timeout %s.")
 	ErrStreamNotExist  = errors.New("stream not exist.")
-	ErrQueueClosed     = errors.New("queue closed.")
 	ErrUnexpectedPkg   = errors.New("unexpected package.")
 	ErrNotSyn          = errors.New("frame result in conn which status is not syn.")
 	ErrFinState        = errors.New("status not est or fin wait when get fin.")

@@ -1,4 +1,4 @@
-package msocks
+package util
 
 import "io"
 

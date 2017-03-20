@@ -1,4 +1,4 @@
-package msocks
+package util
 
 import (
 	"errors"
@@ -9,7 +9,7 @@ import (
 
 var (
 	UPDATE_INTERVAL    uint32 = 10
-	ErrUpdaterNotFound        = errors.New("updater not found")
+	ErrUpdaterNotFound  = errors.New("updater not found")
 )
 
 type Updater interface {

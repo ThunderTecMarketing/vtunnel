@@ -1,8 +1,13 @@
-package msocks
+package util
 
 import (
 	"container/list"
 	"sync"
+	"errors"
+)
+
+var (
+	ErrQueueClosed = errors.New("queue closed.")
 )
 
 type Queue struct {
@@ -34,7 +39,6 @@ func (q *Queue) PushFront(v interface{}) (err error) {
 }
 
 func (q *Queue) Push(v interface{}) (err error) {
-	log.Debugf("push queue: %p", q)
 	q.lock.Lock()
 	defer q.lock.Unlock()
 	if q.closed {
@@ -46,7 +50,6 @@ func (q *Queue) Push(v interface{}) (err error) {
 }
 
 func (q *Queue) Pop(block bool) (v interface{}, err error) {
-	log.Debugf("pop queue: %p, block: %t", q, block)
 	q.lock.Lock()
 	defer q.lock.Unlock()
 	var e *list.Element
@@ -65,7 +68,6 @@ func (q *Queue) Pop(block bool) (v interface{}, err error) {
 }
 
 func (q *Queue) Close() (err error) {
-	log.Debugf("close queue: %p", q)
 	q.lock.Lock()
 	defer q.lock.Unlock()
 	if q.closed {

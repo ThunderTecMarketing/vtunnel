@@ -7,6 +7,7 @@ import (
 	"net"
 	"sync"
 	"time"
+	"github.com/FTwOoO/vtunnel/util"
 )
 
 const (
@@ -33,7 +34,7 @@ type Conn struct {
 	rlock       sync.Mutex // this should used to block reader and reader, not writer
 	wlock       sync.Mutex
 
-	rqueue      *Queue
+	rqueue      *util.Queue
 }
 
 func NewConn(status uint8, streamid uint16, session *Session, address ConnInfo) (c *Conn) {
@@ -42,7 +43,7 @@ func NewConn(status uint8, streamid uint16, session *Session, address ConnInfo) 
 		session:  session,
 		streamId: streamid,
 		Address:  address,
-		rqueue:   NewQueue(),
+		rqueue:   util.NewQueue(),
 	}
 	return
 }
@@ -69,7 +70,7 @@ func (c *Conn) Read(data []byte) (n int, err error) {
 		if r_rest == nil {
 			// reader should be blocked in here
 			v, err = c.rqueue.Pop(block)
-			if err == ErrQueueClosed {
+			if err == util.ErrQueueClosed {
 				err = io.EOF
 			}
 			if err != nil {
