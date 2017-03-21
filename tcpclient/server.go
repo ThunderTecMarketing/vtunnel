@@ -1,18 +1,19 @@
-package main
+package tcpclient
 
 import (
 	"github.com/ginuerzh/gosocks5"
 	"net"
 	"io"
+	"github.com/FTwOoO/vtunnel/msocks"
 )
 
-type ServerSelector struct{}
+type NoAuthSocksServerSelector struct{}
 
-func (selector *ServerSelector) Methods() []uint8 {
+func (selector *NoAuthSocksServerSelector) Methods() []uint8 {
 	return []uint8{gosocks5.MethodNoAuth}
 }
 
-func (selector *ServerSelector) Select(methods ...uint8) (method uint8) {
+func (selector *NoAuthSocksServerSelector) Select(methods ...uint8) (method uint8) {
 
 	method = gosocks5.MethodNoAcceptable
 	for _, m := range methods {
@@ -23,7 +24,7 @@ func (selector *ServerSelector) Select(methods ...uint8) (method uint8) {
 	return
 }
 
-func (selector *ServerSelector) OnSelected(method uint8, conn net.Conn) (net.Conn, error) {
+func (selector *NoAuthSocksServerSelector) OnSelected(method uint8, conn net.Conn) (net.Conn, error) {
 
 	switch method {
 	case gosocks5.MethodNoAcceptable:
@@ -34,11 +35,13 @@ func (selector *ServerSelector) OnSelected(method uint8, conn net.Conn) (net.Con
 }
 
 type Socks5Server struct {
-	selector *ServerSelector
+	Socks5ListenAddr string
+	Selector         gosocks5.Selector
+	Pool             *msocks.SessionPool
 }
 
 func (s *Socks5Server) Serve() error {
-	ln, err := net.Listen("tcp", "0.0.0.0:10808")
+	ln, err := net.Listen("tcp", s.Socks5ListenAddr)
 
 	if err != nil {
 		return nil
@@ -58,7 +61,7 @@ func (s *Socks5Server) Serve() error {
 func (s *Socks5Server) handleConn(conn net.Conn) {
 	defer conn.Close()
 
-	conn = gosocks5.ServerConn(conn, s.selector)
+	conn = gosocks5.ServerConn(conn, s.Selector)
 	req, err := gosocks5.ReadRequest(conn)
 	if err != nil {
 		return
@@ -83,8 +86,14 @@ func (s *Socks5Server) HandleRequest(conn net.Conn, req *gosocks5.Request) (err 
 }
 
 func (s *Socks5Server) handleConnect(conn net.Conn, req *gosocks5.Request) {
-	cc, err := net.Dial("tcp", req.Addr.String())
+	session, err := s.Pool.Get()
+	if session != nil {
+		rep := gosocks5.NewReply(gosocks5.NetUnreachable, nil)
+		rep.Write(conn)
+		return
+	}
 
+	cc, err := session.Dial("tcp", req.Addr.String())
 	if err != nil {
 		rep := gosocks5.NewReply(gosocks5.HostUnreachable, nil)
 		rep.Write(conn)
@@ -122,7 +131,3 @@ func (s *Socks5Server) connected(conn1, conn2 net.Conn) (err error) {
 	return
 }
 
-func main() {
-	server := &Socks5Server{selector:new(ServerSelector)}
-	server.Serve()
-}

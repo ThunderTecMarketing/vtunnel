@@ -25,7 +25,7 @@ func NewMsocksServer(dialer Dialer) (ms *MsocksServer, err error) {
 	}
 
 	ms = &MsocksServer{
-		SessionPool: CreateSessionPool(0, 0),
+		SessionPool: CreateSessionPool(0, 0, nil),
 		dialer:      dialer,
 		dnsServer: dnsServer,
 	}

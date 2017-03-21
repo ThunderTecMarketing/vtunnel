@@ -2,35 +2,21 @@ package msocks
 
 import (
 	"math/rand"
-	"net"
 	"sync"
 )
 
-type ClientDialerFactory struct {
-	ObjectDialer
-
-}
-
-func (sf *ClientDialerFactory) CreateSession() (s *Session, err error) {
-	conn, err := sf.ObjectDialer.Dial()
-	if err != nil {
-		return
-	}
-
-	s = NewSession(conn, nil)
-	return
-}
-
 type SessionPool struct {
-	sessionsMu       sync.Mutex
-	factoryMu        sync.Mutex
-	sessions         map[*Session]struct{}
-	sessionFactories []*ClientDialerFactory
-	MinSess          int
-	MaxConn          int
+	sessionsMu     sync.Mutex
+	sessions       map[*Session]struct{}
+
+	factoryMu      sync.Mutex
+	SessionDialers []ObjectDialer
+
+	MinSess        int
+	MaxConn        int
 }
 
-func CreateSessionPool(MinSess, MaxConn int) (sp *SessionPool) {
+func CreateSessionPool(MinSess, MaxConn int, dialers []ObjectDialer) (sp *SessionPool) {
 	if MinSess == 0 {
 		MinSess = 1
 	}
@@ -41,14 +27,15 @@ func CreateSessionPool(MinSess, MaxConn int) (sp *SessionPool) {
 		sessions:    make(map[*Session]struct{}, 0),
 		MinSess: MinSess,
 		MaxConn: MaxConn,
+		SessionDialers:dialers,
 	}
 	return
 }
 
-func (sp *SessionPool) AddSessionFactory(sf *ClientDialerFactory) {
+func (sp *SessionPool) AddSessionDialer(sd ObjectDialer) {
 	sp.factoryMu.Lock()
 	defer sp.factoryMu.Unlock()
-	sp.sessionFactories = append(sp.sessionFactories, sf)
+	sp.SessionDialers = append(sp.SessionDialers, sd)
 }
 
 func (sp *SessionPool) CleanSessions() {
@@ -60,7 +47,7 @@ func (sp *SessionPool) CleanSessions() {
 	sp.sessions = make(map[*Session]struct{}, 0)
 }
 
-func (sp *SessionPool) GetSize() int {
+func (sp *SessionPool) GetSessionsCount() int {
 	return len(sp.sessions)
 }
 
@@ -127,14 +114,17 @@ func (sp *SessionPool) createSession(checker func() bool) (err error) {
 	var sess *Session
 
 	start := rand.Int()
-	end := start + DIAL_RETRY*len(sp.sessionFactories)
+	end := start + DIAL_RETRY * len(sp.SessionDialers)
 	for i := start; i < end; i++ {
-		asf := sp.sessionFactories[i%len(sp.sessionFactories)]
-		sess, err = asf.CreateSession()
+		asf := sp.SessionDialers[i % len(sp.SessionDialers)]
+
+		conn, err := asf.Dial()
 		if err != nil {
 			log.Errorf("%s", err)
 			continue
 		}
+
+		sess = NewSession(conn, nil)
 		break
 	}
 
@@ -145,7 +135,7 @@ func (sp *SessionPool) createSession(checker func() bool) (err error) {
 	log.Noticef("session created.")
 
 	sp.Add(sess)
-	go sp.sessRun(sess)
+	go sp.RunSession(sess)
 	return
 }
 
@@ -160,7 +150,7 @@ func (sp *SessionPool) getLessUsedSession() (sess *Session, size int) {
 	return
 }
 
-func (sp *SessionPool) sessRun(sess *Session) {
+func (sp *SessionPool) RunSession(sess *Session) {
 	defer func() {
 		err := sp.Remove(sess)
 		if err != nil {
@@ -173,21 +163,3 @@ func (sp *SessionPool) sessRun(sess *Session) {
 	log.Warning("session runtime quit, reboot from connect.")
 	return
 }
-
-func (sp *SessionPool) Dial(network, address string) (net.Conn, error) {
-	sess, err := sp.Get()
-	if err != nil {
-		return nil, nil
-	}
-	return sess.Dial(network, address)
-}
-
-/*
-func (sp *SessionPool) LookupIP(host string) (addrs []net.IP, err error) {
-	sess, err := sp.Get()
-	if err != nil {
-		return
-	}
-	return sess.LookupIP(host)
-}
-*/
