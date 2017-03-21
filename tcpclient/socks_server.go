@@ -37,6 +37,7 @@ func (selector *NoAuthSocksServerSelector) OnSelected(method uint8, conn net.Con
 type Socks5Server struct {
 	Socks5ListenAddr string
 	Selector         gosocks5.Selector
+	Dialer           msocks.Dialer
 	Pool             *msocks.SessionPool
 }
 
@@ -86,16 +87,9 @@ func (s *Socks5Server) HandleRequest(conn net.Conn, req *gosocks5.Request) (err 
 }
 
 func (s *Socks5Server) handleConnect(conn net.Conn, req *gosocks5.Request) {
-	session, err := s.Pool.Get()
-	if session != nil {
-		rep := gosocks5.NewReply(gosocks5.NetUnreachable, nil)
-		rep.Write(conn)
-		return
-	}
-
-	cc, err := session.Dial("tcp", req.Addr.String())
+	cc, err := s.Dialer.Dial("tcp", req.Addr.String())
 	if err != nil {
-		rep := gosocks5.NewReply(gosocks5.HostUnreachable, nil)
+		rep := gosocks5.NewReply(gosocks5.NetUnreachable, nil)
 		rep.Write(conn)
 		return
 	} else {
