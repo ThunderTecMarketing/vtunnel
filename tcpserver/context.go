@@ -29,14 +29,12 @@ func (h *tunnelContext) InspectServerBlocks(sourceFile string, serverBlocks []ca
 	for _, sb := range serverBlocks {
 		for _, key := range sb.Keys {
 
-			host, port, err := standardizeAddress(key)
+			_, _, err := standardizeAddress(key)
 			if err != nil {
 				return serverBlocks, err
 			} else {
 				cfg := &ServerConfig{
-					ListenHost: host,
-					ListenPort: uint16(port),
-					Clients: make(map[string]string),
+					ListenAddr: key,
 				}
 				h.saveConfig(key, cfg)
 			}

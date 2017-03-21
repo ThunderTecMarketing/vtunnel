@@ -38,20 +38,21 @@ type Socks5Server struct {
 	Socks5ListenAddr string
 	Selector         gosocks5.Selector
 	Dialer           msocks.Dialer
-	Pool             *msocks.SessionPool
 }
 
-func (s *Socks5Server) Serve() error {
-	ln, err := net.Listen("tcp", s.Socks5ListenAddr)
+func (s *Socks5Server) Serve(ln net.Listener) (err error) {
+	var listener net.Listener = ln
 
-	if err != nil {
-		return nil
+	if listener == nil {
+		listener, err = net.Listen("tcp", s.Socks5ListenAddr)
+		if err != nil {
+			return nil
+		}
 	}
 
-	defer ln.Close()
-
+	defer listener.Close()
 	for {
-		conn, err := ln.Accept()
+		conn, err := listener.Accept()
 		if err != nil {
 			continue
 		}

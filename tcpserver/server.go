@@ -73,8 +73,7 @@ func NewServer(config *ServerConfig) (*Server, error) {
 // used to serve requests.
 func (s *Server) Listen() (net.Listener, error) {
 
-	Addr := fmt.Sprintf("%s:%d", s.config.ListenHost, s.config.ListenPort)
-	ln, err := net.Listen("tcp", Addr)
+	ln, err := net.Listen("tcp", s.config.ListenAddr)
 	if err != nil {
 		var succeeded bool
 		if runtime.GOOS == "windows" {
@@ -83,7 +82,7 @@ func (s *Server) Listen() (net.Listener, error) {
 			// in succession. TODO: Better way to handle this? And why limit this to Windows?
 			for i := 0; i < 20; i++ {
 				time.Sleep(100 * time.Millisecond)
-				ln, err = net.Listen("tcp", Addr)
+				ln, err = net.Listen("tcp", s.config.ListenAddr)
 				if err == nil {
 					succeeded = true
 					break
@@ -149,7 +148,11 @@ func (s *Server) Serve(ln net.Listener) error {
 	}
 	*/
 
-	err = s.config.Handler(ln)
+	handler := s.config.GetHandler()
+	if handler == nil {
+		return errors.New("Invalid config")
+	}
+	err = handler(ln)
 	return err
 }
 
@@ -163,7 +166,7 @@ func (s *Server) ServePacket(pc net.PacketConn) error {
 
 // Address returns the address s was assigned to listen on.
 func (s *Server) Address() string {
-	return fmt.Sprintf("%s:%d", s.config.ListenHost, s.config.ListenPort)
+	return s.config.ListenAddr
 }
 
 // Stop stops s gracefully (or forcefully after timeout) and

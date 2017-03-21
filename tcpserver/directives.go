@@ -1,39 +1,30 @@
 package tcpserver
 
 import (
-	"net"
 	"github.com/mholt/caddy"
-	"github.com/FTwOoO/vpncore/net/conn/stream/transport"
-	"github.com/FTwOoO/vpncore/net/conn/message/fragment"
-	"github.com/FTwOoO/vpncore/net/conn/message/ahead"
-	"github.com/FTwOoO/vpncore/net/conn/message/msgpack"
-	"github.com/FTwOoO/vpncore/net/conn"
-	"github.com/FTwOoO/vtunnel/msocks"
 )
 
 var directives = []string{
-	"clients",
-	"transport",
+	"client",
+	"server",
 }
 
 func init() {
-	caddy.RegisterPlugin("clients", caddy.Plugin{
+	caddy.RegisterPlugin("client", caddy.Plugin{
 		ServerType: ServerType,
-		Action:     SetupClientsDirective,
+		Action:     SetupDirective,
 	})
 
-
-	caddy.RegisterPlugin("transport", caddy.Plugin{
+	caddy.RegisterPlugin("server", caddy.Plugin{
 		ServerType: ServerType,
-		Action:     SetupTransportDirective,
+		Action:     SetupDirective,
 	})
 }
 
-func SetupClientsDirective(c *caddy.Controller) (err error) {
+func SetupDirective(c *caddy.Controller) (err error) {
 
 	ctx := c.Context().(*tunnelContext)
 	config := ctx.keysToConfigs[c.Key]
-	var clientkey string
 
 	if c.Next() {
 		args := c.RemainingArgs()
@@ -44,47 +35,38 @@ func SetupClientsDirective(c *caddy.Controller) (err error) {
 			return c.ArgErr()
 		}
 
-		for c.NextBlock() {
-			userName := c.Val()
-			clientkey, err = StringArg(c)
-			if err != nil {
-				break
+		switch c.Val() {
+		case "server", "client":
+			if c.Val() == "client" {
+				config.IsServer = false
+			} else {
+				config.IsServer = true
 			}
-			config.Clients[userName] = clientkey
+
+			for c.NextBlock() {
+				switch c.Val() {
+				case "localProxyType":
+					config.LocalProxyType, err = StringArg(c)
+				case "remoteAddr":
+					config.RemoteAddr, err = StringArg(c)
+
+				case "transportType":
+					var transportType string
+					transportType, err = StringArg(c)
+					config.TransportType = TransportType(transportType)
+				case "transportKey":
+					var transportKey string
+					transportKey, err = StringArg(c)
+					config.TransportKey = []byte(transportKey)
+
+				}
+			}
+
+		default:
+			break
 		}
+
 	}
 
 	return
-}
-
-func SetupTransportDirective(c *caddy.Controller) error {
-	ctx := c.Context().(*tunnelContext)
-	config := ctx.keysToConfigs[c.Key]
-
-	config.Handler = func (ln net.Listener) error {
-		context1 := &transport.TransportStreamContext2{
-			Listener: ln,
-		}
-
-		context2 := new(fragment.FragmentContext)
-		context3 := ahead.NewAheadContext([]byte("Key..."))
-		context4 := new(msgpack.MsgpackContext)
-
-		contexts := []conn.Context{context1, context2, context3, context4}
-		server := new(conn.SimpleServer)
-		listener, err := server.NewListener(contexts)
-		if err != nil {
-			return err
-		}
-
-		msocksServer, err := msocks.NewMsocksServer(msocks.DefaultTcpDialer)
-		if err != nil {
-			return err
-		}
-
-		return msocksServer.Serve(listener)
-
-	}
-
-	return nil
 }

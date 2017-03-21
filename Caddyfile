@@ -1,10 +1,16 @@
-localhost:10088 {
-    clients {
-       user1  e01ee3207ea15d346c362b7e20cef3a1088ec0a11a1141b3584ed44e2bb69531
-       user2  bsasd3
+localhost:10808 {
+    client {
+       localProxyType  socks5
+       remoteAddr  127.0.0.1:10809
+       transportType TCP-Fragment-AheadGCM256-Msgpack
+       transportKey  e01ee3207ea15d346c362b7e20cef3a1088ec0a11a1141b3584ed44e2bb69531
+
     }
+}
 
-    transport {
-
+localhost:10809 {
+    server {
+       transportType TCP-Fragment-AheadGCM256-Msgpack
+       transportKey  e01ee3207ea15d346c362b7e20cef3a1088ec0a11a1141b3584ed44e2bb69531
     }
 }

@@ -10,7 +10,7 @@ import (
 
 type ClientDialer struct {
 	RemoteAddr string
-	Key        string
+	Key        []byte
 }
 
 func (c *ClientDialer) Dial() (connection conn.ObjectIO, err error) {
