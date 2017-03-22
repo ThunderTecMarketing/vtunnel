@@ -6,10 +6,10 @@ import (
 	"net"
 	"sync"
 	"time"
-
 	"github.com/miekg/dns"
 	"github.com/FTwOoO/vpncore/net/conn"
-	"github.com/FTwOoO/dnsrelay/dnsrelay"
+
+	mdns "github.com/FTwOoO/vpncore/net/dns"
 	"github.com/FTwOoO/vtunnel/util"
 )
 
@@ -21,10 +21,10 @@ type Session struct {
 	streams     map[uint16]FrameReceiver
 
 	dialer      Dialer
-	dnsServer   *dnsrelay.DNSServer
+	dnsServer   *mdns.DNSServer
 }
 
-func NewSession(conn conn.ObjectIO, dnsServer *dnsrelay.DNSServer) (s *Session) {
+func NewSession(conn conn.ObjectIO, dnsServer *mdns.DNSServer) (s *Session) {
 	s = &Session{
 		conn:     conn,
 		dnsServer: dnsServer,
@@ -168,7 +168,7 @@ func (s *Session) on_syn(ft *FrameSyn) (err error) {
 	return
 }
 
-func (s *Session) writeDNS(ctx dnsrelay.QueryContext, m []byte) (err error) {
+func (s *Session) writeDNS(ctx mdns.QueryContext, m []byte) (err error) {
 	streamId, ok := ctx.(uint16)
 	if !ok {
 		return errors.New("Unexpected context")
@@ -189,7 +189,7 @@ func (s *Session) on_dns(ft *FrameDns) (err error) {
 		return ErrDnsMsgIllegal
 	}
 
-	s.dnsServer.QueryByDNSMsg(req, ft.GetStreamId(), dnsrelay.WriteHandler(s.writeDNS))
+	s.dnsServer.QueryByDNSMsg(req, ft.GetStreamId(), mdns.RawHandler(s.writeDNS))
 	return
 }
 

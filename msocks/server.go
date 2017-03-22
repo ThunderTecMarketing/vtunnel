@@ -3,13 +3,14 @@ package msocks
 import (
 	"errors"
 	"github.com/FTwOoO/vpncore/net/conn"
-	"github.com/FTwOoO/dnsrelay/dnsrelay"
+	mdns "github.com/FTwOoO/vpncore/net/dns"
+
 )
 
 type MsocksServer struct {
 	*SessionPool
 	dialer    Dialer
-	dnsServer *dnsrelay.DNSServer
+	dnsServer *mdns.DNSServer
 }
 
 func NewMsocksServer(dialer Dialer) (ms *MsocksServer, err error) {
@@ -19,7 +20,7 @@ func NewMsocksServer(dialer Dialer) (ms *MsocksServer, err error) {
 		return
 	}
 
-	dnsServer, err := dnsrelay.NewDNSServer(nil, true)
+	dnsServer, err := mdns.NewDNSServer(nil, true)
 	if err != nil {
 		return
 	}
