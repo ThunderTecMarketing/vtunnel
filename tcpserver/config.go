@@ -77,16 +77,15 @@ func (s *ServerConfig) GetHandler() ListenerHandler {
 	}
 	if s.IsServer == false && s.TransportType == TRANSPORT1 {
 		return func(ln net.Listener) error {
-			dialer := &Dialer{
+			dialer := &tcpclient.Dialer{
 				Pool:msocks.CreateSessionPool(0, 0,
-					[]msocks.ObjectDialer{&tcpclient.ClientDialer{
+					[]msocks.ObjectDialer{&tcpclient.ProtocolDialer{
 						RemoteAddr:s.RemoteAddr,
 						Key:s.TransportKey},
 					}),
 			}
 
 			server := &tcpclient.Socks5Server{
-				Socks5ListenAddr: "",
 				Selector:new(tcpclient.NoAuthSocksServerSelector),
 				Dialer:dialer,
 			}
@@ -95,16 +94,4 @@ func (s *ServerConfig) GetHandler() ListenerHandler {
 	}
 
 	return nil
-}
-
-type Dialer struct {
-	Pool *msocks.SessionPool
-}
-
-func (d *Dialer) Dial(network string, addr string) (net.Conn, error) {
-	session, err := d.Pool.Get()
-	if err != nil {
-		return nil, err
-	}
-	return session.Dial(network, addr)
 }

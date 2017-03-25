@@ -1,6 +1,8 @@
 package tcpclient
 
 import (
+	"github.com/FTwOoO/vtunnel/msocks"
+	"net"
 	"github.com/FTwOoO/vpncore/net/conn"
 	"github.com/FTwOoO/vpncore/net/conn/message/fragment"
 	"github.com/FTwOoO/vpncore/net/conn/message/ahead"
@@ -8,12 +10,26 @@ import (
 	"github.com/FTwOoO/vpncore/net/conn/message/msgpack"
 )
 
-type ClientDialer struct {
+type Dialer struct {
+	Pool *msocks.SessionPool
+}
+
+func (d *Dialer) Dial(network string, addr string) (net.Conn, error) {
+	session, err := d.Pool.Get()
+	if err != nil {
+		return nil, err
+	}
+	return session.Dial(network, addr)
+}
+
+
+
+type ProtocolDialer struct {
 	RemoteAddr string
 	Key        []byte
 }
 
-func (c *ClientDialer) Dial() (connection conn.ObjectIO, err error) {
+func (c *ProtocolDialer) Dial() (connection conn.ObjectIO, err error) {
 	context1 := &transport.TransportStreamContext{
 		Protocol:conn.PROTO_TCP,
 		ListenAddr:"",

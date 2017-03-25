@@ -32,7 +32,7 @@ func (c *Conn) WaitForConn() (err error) {
 		log.Errorf("remote connect %s failed for %d.", c.String(), errno)
 		c.final()
 	} else {
-		log.Noticef("connected to: %s:%d", c.Address.DstHost, c.Address.DstPort)
+		log.Infof("connected to: %s:%d", c.Address.DstHost, c.Address.DstPort)
 	}
 
 	c.chSynResult = nil

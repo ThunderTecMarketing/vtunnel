@@ -114,40 +114,6 @@ func (s *Server) Serve(ln net.Listener) error {
 
 	var err error
 
-	/*
-	var tempDelay time.Duration // how long to sleep on accept failure
-	for {
-		rw, e := ln.Accept()
-		if e != nil {
-			select {
-			case <-s.doneChan:
-				return ErrServerClosed
-			default:
-			}
-			if ne, ok := e.(net.Error); ok && ne.Temporary() {
-				if tempDelay == 0 {
-					tempDelay = 5 * time.Millisecond
-				} else {
-					tempDelay *= 2
-				}
-				if max := 1 * time.Second; tempDelay > max {
-					tempDelay = max
-				}
-				//s.logf("http: Accept error: %v; retrying in %v", e, tempDelay)
-				time.Sleep(tempDelay)
-				continue
-			}
-			return e
-		}
-		tempDelay = 0
-
-		print(rw)
-		//c := srv.newConn(rw)
-		//c.setState(c.rwc, StateNew) // before Serve can return
-		//go c.serve(ctx)
-	}
-	*/
-
 	handler := s.config.GetHandler()
 	if handler == nil {
 		return errors.New("Invalid config")

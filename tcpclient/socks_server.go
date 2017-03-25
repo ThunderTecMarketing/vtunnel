@@ -5,6 +5,7 @@ import (
 	"net"
 	"io"
 	"github.com/FTwOoO/vtunnel/msocks"
+	"github.com/pkg/errors"
 )
 
 type NoAuthSocksServerSelector struct{}
@@ -35,19 +36,25 @@ func (selector *NoAuthSocksServerSelector) OnSelected(method uint8, conn net.Con
 }
 
 type Socks5Server struct {
-	Socks5ListenAddr string
 	Selector         gosocks5.Selector
 	Dialer           msocks.Dialer
 }
 
-func (s *Socks5Server) Serve(ln net.Listener) (err error) {
-	var listener net.Listener = ln
+func (s *Socks5Server) Serve(ln interface{}) (err error) {
 
-	if listener == nil {
-		listener, err = net.Listen("tcp", s.Socks5ListenAddr)
+	var listener net.Listener
+	switch ln.(type) {
+	case net.Listener:
+		listener = ln.(net.Listener)
+
+	case string:
+		socks5ListenAddr := ln.(string)
+		listener, err = net.Listen("tcp", socks5ListenAddr)
 		if err != nil {
-			return nil
+			return err
 		}
+	default:
+		return errors.New("Unkown type")
 	}
 
 	defer listener.Close()
@@ -58,6 +65,8 @@ func (s *Socks5Server) Serve(ln net.Listener) (err error) {
 		}
 		go s.handleConn(conn)
 	}
+
+	return nil
 }
 
 func (s *Socks5Server) handleConn(conn net.Conn) {
