@@ -22,14 +22,17 @@ import (
 	_ "github.com/mholt/caddy/caddyhttp"
 	"github.com/mholt/caddy/caddy/caddymain"
 	"flag"
-	"github.com/FTwOoO/vtunnel/server"
+	"github.com/FTwOoO/vtunnel/tunnel"
+	_ "github.com/FTwOoO/vtunnel/client"
+	_ "github.com/FTwOoO/vtunnel/server"
+
 )
 
 func main() {
 
 	// set caddy file loader,
-	// load caddy file as http server type,
+	// load caddy file as http tunnel type,
 	// start the caddy enging
-	flag.Set("type", server.ServerType)
+	flag.Set("type", tunnel.ServerType)
 	caddymain.Run()
 }

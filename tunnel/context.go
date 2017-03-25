@@ -3,7 +3,7 @@
  * Created: 2017-03
  */
 
-package server
+package tunnel
 
 import (
 	"github.com/mholt/caddy/caddyfile"
@@ -13,14 +13,14 @@ import (
 )
 
 type tunnelContext struct {
-	configs       []*ServerConfig
-	keysToConfigs map[string]*ServerConfig
+	configs       []*Config
+	keysToConfigs map[string]*Config
 }
 
-func (h *tunnelContext) saveConfig(key string, cfg *ServerConfig) {
+func (h *tunnelContext) saveConfig(key string, cfg *Config) {
 	h.configs = append(h.configs, cfg)
 	if h.keysToConfigs == nil {
-		h.keysToConfigs = map[string]*ServerConfig{}
+		h.keysToConfigs = map[string]*Config{}
 	}
 
 	h.keysToConfigs[key] = cfg
@@ -33,7 +33,7 @@ func (h *tunnelContext) InspectServerBlocks(sourceFile string, serverBlocks []ca
 			if err != nil {
 				return serverBlocks, err
 			} else {
-				cfg := &ServerConfig{
+				cfg := &Config{
 					ListenAddr: key,
 				}
 				h.saveConfig(key, cfg)

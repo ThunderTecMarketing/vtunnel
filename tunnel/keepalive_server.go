@@ -3,7 +3,7 @@
  * Created: 2017-03
  */
 
-package server
+package tunnel
 
 import (
 	"time"

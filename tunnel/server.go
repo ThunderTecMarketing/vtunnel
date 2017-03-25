@@ -3,7 +3,7 @@
  * Created: 2017-03
  */
 
-package server
+package tunnel
 
 import (
 	"github.com/mholt/caddy"
@@ -37,11 +37,11 @@ func init() {
 }
 
 
-// Server is the HTTP server implementation.
+// Server is the HTTP tunnel implementation.
 type Server struct {
 	listener    net.Listener
 	listenerMu  sync.Mutex
-	config      *ServerConfig
+	config      *Config
 
 	connTimeout time.Duration // max time to wait for a connection before force stop
 
@@ -54,9 +54,7 @@ var _ caddy.GracefulServer = new(Server)
 var GracefulTimeout = 5 * time.Second
 var ErrServerClosed = errors.New("http: Server closed")
 
-// NewServer creates a new Server instance that will listen on addr
-// and will serve the sites configured in group.
-func NewServer(config *ServerConfig) (*Server, error) {
+func NewServer(config *Config) (*Server, error) {
 	s := &Server{
 		config:       config,
 		connTimeout: GracefulTimeout,
@@ -67,8 +65,6 @@ func NewServer(config *ServerConfig) (*Server, error) {
 }
 
 
-// Listen creates an active listener for s that can be
-// used to serve requests.
 func (s *Server) Listen() (net.Listener, error) {
 
 	ln, err := net.Listen("tcp", s.config.ListenAddr)
@@ -104,7 +100,6 @@ func (s *Server) Listen() (net.Listener, error) {
 }
 
 
-// Serve serves requests on ln. It blocks until ln is closed.
 func (s *Server) Serve(ln net.Listener) error {
 	s.listenerMu.Lock()
 	s.listener = ln
@@ -128,13 +123,10 @@ func (s *Server) ServePacket(pc net.PacketConn) error {
 	return nil
 }
 
-// Address returns the address s was assigned to listen on.
 func (s *Server) Address() string {
 	return s.config.ListenAddr
 }
 
-// Stop stops s gracefully (or forcefully after timeout) and
-// closes its listener.
 func (s *Server) Stop() error {
 	close(s.doneChan)
 	return nil
