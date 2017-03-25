@@ -3,7 +3,7 @@
  * Created: 2017-03
  */
 
-package tcpserver
+package server
 
 import (
 	"github.com/mholt/caddy"

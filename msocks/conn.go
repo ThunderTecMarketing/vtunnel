@@ -25,9 +25,8 @@ type Stream interface {
 	String() string
 }
 
+//implements Stream interface
 type Conn struct {
-	//net.Conn
-	//The target
 	Address     ConnInfo
 
 	statusLock  sync.Mutex

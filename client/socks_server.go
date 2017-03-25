@@ -1,4 +1,4 @@
-package tcpclient
+package client
 
 import (
 	"github.com/ginuerzh/gosocks5"

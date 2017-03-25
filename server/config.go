@@ -3,7 +3,7 @@
  * Created: 2017-03
  */
 
-package tcpserver
+package server
 
 import (
 	"time"
@@ -15,7 +15,7 @@ import (
 	"github.com/FTwOoO/vpncore/net/conn/stream/transport"
 	"github.com/FTwOoO/vpncore/net/conn/message/msgpack"
 	"github.com/FTwOoO/vtunnel/msocks"
-	"github.com/FTwOoO/vtunnel/tcpclient"
+	"github.com/FTwOoO/vtunnel/client"
 )
 
 var DefaultPrologue = "vtunnel"
@@ -77,16 +77,16 @@ func (s *ServerConfig) GetHandler() ListenerHandler {
 	}
 	if s.IsServer == false && s.TransportType == TRANSPORT1 {
 		return func(ln net.Listener) error {
-			dialer := &tcpclient.NetDialer{
+			dialer := &client.NetDialer{
 				Pool:msocks.CreateSessionPool(0, 0,
-					[]msocks.ObjectDialer{&tcpclient.ProtocolDialer{
+					[]msocks.ObjectDialer{&client.ProtocolDialer{
 						RemoteAddr:s.RemoteAddr,
 						Key:s.TransportKey},
 					}),
 			}
 
-			server := &tcpclient.Socks5Server{
-				Selector:new(tcpclient.NoAuthSocksServerSelector),
+			server := &client.Socks5Server{
+				Selector:new(client.NoAuthSocksServerSelector),
 				Dialer:dialer,
 			}
 			return server.Serve(ln)
