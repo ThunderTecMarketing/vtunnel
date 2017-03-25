@@ -45,7 +45,7 @@ func SetupDirective(c *caddy.Controller) (err error) {
 
 			for c.NextBlock() {
 				switch c.Val() {
-				case "localProxyType":
+				case "proxyType":
 					config.LocalProxyType, err = StringArg(c)
 				case "remoteAddr":
 					config.RemoteAddr, err = StringArg(c)

@@ -10,7 +10,7 @@ func (s *Session) GetStreamsSize() int {
 	return len(s.streams)
 }
 
-func (s *Session) GetStreamById(id uint16) (FrameReceiver, error) {
+func (s *Session) GetStreamById(id uint16) (Stream, error) {
 	s.streamsLock.Lock()
 	defer s.streamsLock.Unlock()
 
@@ -48,17 +48,23 @@ func (s *Session) RemoveStream(streamid uint16) (err error) {
 		return fmt.Errorf("streamid(%d) not exist.", streamid)
 	}
 	delete(s.streams, streamid)
-	log.Infof("%s remove port %d.", s.String(), streamid)
+	log.Infof("%s remove stream[%d].", s.String(), streamid)
 	return
 }
 
 type ConnSlice []*Conn
 
-func (cs ConnSlice) Len() int           { return len(cs) }
-func (cs ConnSlice) Swap(i, j int)      { cs[i], cs[j] = cs[j], cs[i] }
-func (cs ConnSlice) Less(i, j int) bool { return cs[i].streamId < cs[j].streamId}
+func (cs ConnSlice) Len() int {
+	return len(cs)
+}
+func (cs ConnSlice) Swap(i, j int) {
+	cs[i], cs[j] = cs[j], cs[i]
+}
+func (cs ConnSlice) Less(i, j int) bool {
+	return cs[i].streamId < cs[j].streamId
+}
 
-func (s *Session) PutStreamIntoNextId(fs FrameReceiver) (id uint16, err error) {
+func (s *Session) PutStreamIntoNextId(fs Stream) (id uint16, err error) {
 	s.streamsLock.Lock()
 	defer s.streamsLock.Unlock()
 
@@ -78,14 +84,14 @@ func (s *Session) PutStreamIntoNextId(fs FrameReceiver) (id uint16, err error) {
 	}
 	id = s.next_id
 	s.next_id += 1
-	log.Debugf("%s put into next id %d: %p.", s.String(), id, fs)
+	log.Debugf("%s put into next id %d: %s.", s.String(), id, fs)
 
 	s.streams[id] = fs
 	return
 }
 
-func (s *Session) PutStreamIntoId(id uint16, fs FrameReceiver) (err error) {
-	log.Debugf("%s put into id %d: %p.", s.String(), id, fs)
+func (s *Session) PutStreamIntoId(id uint16, fs Stream) (err error) {
+	log.Debugf("%s put %s into id %d", s.String(), fs.String(), id)
 	s.streamsLock.Lock()
 	defer s.streamsLock.Unlock()
 

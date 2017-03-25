@@ -160,6 +160,5 @@ func (sp *SessionPool) RunSession(sess *Session) {
 	}()
 
 	sess.Run()
-	log.Warning("session runtime quit, reboot from connect.")
 	return
 }

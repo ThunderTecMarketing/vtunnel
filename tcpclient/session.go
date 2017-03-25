@@ -20,7 +20,7 @@ func (c *ClientDialer) Dial() (connection conn.ObjectIO, err error) {
 		RemoveAddr:c.RemoteAddr}
 
 	context2 := new(fragment.FragmentContext)
-	context3 := ahead.NewAheadContext([]byte(c.Key))  //"Key..."))
+	context3 := ahead.NewAheadContext([]byte(c.Key))
 	context4 := new(msgpack.MsgpackContext)
 
 	contexts := []conn.Context{context1, context2, context3, context4}

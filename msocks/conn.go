@@ -18,6 +18,12 @@ const (
 	ST_FIN
 )
 
+
+type Stream interface {
+	FrameReceiver
+	String() string
+}
+
 type Conn struct {
 	//net.Conn
 	//The target
@@ -53,7 +59,7 @@ func (c *Conn) GetStreamId() uint16 {
 }
 
 func (c *Conn) String() (s string) {
-	return fmt.Sprintf("Connection(%d)", c.streamId)
+	return fmt.Sprintf("Stream[ID:%d %s]", c.streamId, c.Address.String())
 }
 
 func (c *Conn) Read(data []byte) (n int, err error) {
@@ -123,7 +129,7 @@ func (c *Conn) Write(data []byte) (n int, err error) {
 			log.Errorf("%s", err)
 			return
 		}
-		log.Debugf("%s send chunk size %d at %d.", c.String(), size, n)
+		log.Debugf("%s send chunk %d bytes", c.String(), size)
 
 		data = data[size:]
 		n += int(size)
@@ -217,7 +223,6 @@ func (c *Conn) GetStatus() (st string) {
 	}
 	return "UNKNOWN"
 }
-
 
 type Addr struct {
 	NetworkType string

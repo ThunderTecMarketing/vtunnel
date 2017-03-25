@@ -18,7 +18,7 @@ type Session struct {
 	next_id     uint16
 
 	streamsLock sync.Mutex
-	streams     map[uint16]FrameReceiver
+	streams     map[uint16]Stream
 
 	dialer      Dialer
 	dnsServer   *mdns.DNSServer
@@ -28,18 +28,18 @@ func NewSession(conn conn.ObjectIO, dnsServer *mdns.DNSServer) (s *Session) {
 	s = &Session{
 		conn:     conn,
 		dnsServer: dnsServer,
-		streams:    make(map[uint16]FrameReceiver, 0),
+		streams:    make(map[uint16]Stream, 0),
 	}
 	log.Noticef("session %s created.", s.String())
 	return
 }
 
 func (s *Session) String() string {
-	return ""
+	return "Session()"
 }
 
 func (s *Session) Close() (err error) {
-	log.Warningf("close all connects (%d) for session: %s.", len(s.streams), s.String())
+	log.Warningf("%s close all streams,  %d streams closed", s.String(), len(s.streams))
 	defer s.conn.Close()
 	s.streamsLock.Lock()
 	defer s.streamsLock.Unlock()
@@ -75,9 +75,8 @@ func (s *Session) Run() {
 		case *FrameSynResult, *FrameData, *FrameFin, *FrameRst:
 			err = s.on_stream_packet(f)
 			if err != nil {
-				log.Errorf("%s(%d) send failed, err: %s.",
-					s.String(), f.GetStreamId(), err.Error())
-				return
+				log.Errorf("%s send to stream[%d] failed, err: %s.", s.String(), f.GetStreamId(), err.Error())
+				continue
 			}
 		case *FrameSyn:
 			err = s.on_syn(ft)
@@ -130,16 +129,16 @@ func (s *Session) on_syn(ft *FrameSyn) (err error) {
 	// so we use goroutine to return back loop
 	go func() {
 		var err error
-		var conn net.Conn
+		var connection net.Conn
 
 		var network = ft.Address.Network
 		var address = fmt.Sprintf("%s:%d", ft.Address.DstHost, ft.Address.DstPort)
 		log.Debugf("try to connect %s => %s:%s.", c.String(), network, address)
 
 		if dialer, ok := s.dialer.(*TcpDialer); ok {
-			conn, err = dialer.DialTimeout(network, address, DIAL_TIMEOUT * time.Second)
+			connection, err = dialer.DialTimeout(network, address, DIAL_TIMEOUT * time.Second)
 		} else {
-			conn, err = s.dialer.Dial(network, address)
+			connection, err = s.dialer.Dial(network, address)
 		}
 
 		if err != nil {
@@ -161,8 +160,7 @@ func (s *Session) on_syn(ft *FrameSyn) (err error) {
 		}
 		c.status = ST_EST
 
-		go util.CopyLink(conn, c)
-		log.Noticef("connected %s => %s.", c.String(), ft.Address.String())
+		go util.CopyLink(connection, c)
 		return
 	}()
 	return

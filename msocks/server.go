@@ -49,17 +49,17 @@ func (ms *MsocksServer) Handler(conn conn.ObjectIO) {
 }
 
 func (ms *MsocksServer) Serve(listener conn.ObjectListener) (err error) {
-	var conn conn.ObjectIO
+	var connection conn.ObjectIO
 
 	for {
-		conn, err = listener.Accept()
+		connection, err = listener.Accept()
 		if err != nil {
 			log.Errorf("%s", err)
 			continue
 		}
 		go func() {
-			defer conn.Close()
-			ms.Handler(conn)
+			defer connection.Close()
+			ms.Handler(connection)
 		}()
 	}
 	return
