@@ -77,7 +77,7 @@ func (s *ServerConfig) GetHandler() ListenerHandler {
 	}
 	if s.IsServer == false && s.TransportType == TRANSPORT1 {
 		return func(ln net.Listener) error {
-			dialer := &tcpclient.Dialer{
+			dialer := &tcpclient.NetDialer{
 				Pool:msocks.CreateSessionPool(0, 0,
 					[]msocks.ObjectDialer{&tcpclient.ProtocolDialer{
 						RemoteAddr:s.RemoteAddr,

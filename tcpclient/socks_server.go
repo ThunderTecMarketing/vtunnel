@@ -4,7 +4,6 @@ import (
 	"github.com/ginuerzh/gosocks5"
 	"net"
 	"io"
-	"github.com/FTwOoO/vtunnel/msocks"
 	"github.com/pkg/errors"
 )
 
@@ -37,7 +36,7 @@ func (selector *NoAuthSocksServerSelector) OnSelected(method uint8, conn net.Con
 
 type Socks5Server struct {
 	Selector         gosocks5.Selector
-	Dialer           msocks.Dialer
+	Dialer           ContextDialer
 }
 
 func (s *Socks5Server) Serve(ln interface{}) (err error) {
@@ -97,7 +96,7 @@ func (s *Socks5Server) HandleRequest(conn net.Conn, req *gosocks5.Request) (err 
 }
 
 func (s *Socks5Server) handleConnect(conn net.Conn, req *gosocks5.Request) {
-	cc, err := s.Dialer.Dial("tcp", req.Addr.String())
+	cc, err := s.Dialer.Dial(conn.RemoteAddr(), "tcp", req.Addr.String())
 	if err != nil {
 		rep := gosocks5.NewReply(gosocks5.NetUnreachable, nil)
 		rep.Write(conn)

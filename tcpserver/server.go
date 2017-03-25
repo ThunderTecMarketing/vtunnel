@@ -18,7 +18,6 @@ import (
 var DefaultPort = 10010
 var ServerType = "tunnel"
 
-
 func init() {
 
 	caddy.RegisterServerType(ServerType, caddy.ServerType{
@@ -36,7 +35,6 @@ func init() {
 		},
 	})
 }
-
 
 
 // Server is the HTTP server implementation.

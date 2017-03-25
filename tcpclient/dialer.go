@@ -10,16 +10,21 @@ import (
 	"github.com/FTwOoO/vpncore/net/conn/message/msgpack"
 )
 
-type Dialer struct {
+type ContextDialer interface {
+	Dial(srcAddr net.Addr, network string, addr string) (net.Conn, error)
+}
+
+//implements ContextDialer
+type NetDialer struct {
 	Pool *msocks.SessionPool
 }
 
-func (d *Dialer) Dial(network string, addr string) (net.Conn, error) {
+func (d *NetDialer) Dial(srcAddr net.Addr, network string, addr string) (net.Conn, error) {
 	session, err := d.Pool.Get()
 	if err != nil {
 		return nil, err
 	}
-	return session.Dial(network, addr)
+	return session.Dial(srcAddr, network, addr)
 }
 
 
