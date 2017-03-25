@@ -132,7 +132,6 @@ func (sp *SessionPool) createSession(checker func() bool) (err error) {
 		log.Errorf("can't connect to any server, quit.")
 		return
 	}
-	log.Noticef("session created.")
 
 	sp.Add(sess)
 	go sp.RunSession(sess)

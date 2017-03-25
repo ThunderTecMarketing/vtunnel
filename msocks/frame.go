@@ -47,12 +47,10 @@ type Frame interface {
 
 type FrameReceiver interface {
 	ReceiveFrame(Frame) error
-	CloseFrame() error
 }
 
 type FrameSender interface {
 	SendFrame(Frame) error
-	CloseFrame() error
 }
 
 

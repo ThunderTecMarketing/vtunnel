@@ -23,14 +23,14 @@ func (c *Conn) WaitForConn() (err error) {
 	err = c.session.SendFrame(fb)
 	if err != nil {
 		log.Errorf("%s", err)
-		c.final()
+		c.Close()
 		return
 	}
 
 	errno := recvWithTimeout(c.chSynResult, DIAL_TIMEOUT * time.Second)
 	if errno != ERR_NONE {
 		log.Errorf("remote connect %s failed for %d.", c.String(), errno)
-		c.final()
+		c.Close()
 	} else {
 		log.Infof("connected to: %s:%d", c.Address.DstHost, c.Address.DstPort)
 	}

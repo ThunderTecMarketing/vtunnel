@@ -20,6 +20,7 @@ const (
 
 
 type Stream interface {
+	net.Conn
 	FrameReceiver
 	String() string
 }
@@ -154,33 +155,18 @@ func (c *Conn) writeSlice(data []byte) (err error) {
 	return
 }
 
-func (c *Conn) final() {
-	c.rqueue.Close()
 
-	err := c.session.RemoveStream(c.streamId)
-	if err != nil {
-		log.Errorf("%s", err)
-	}
-
-	log.Noticef("%s final.", c.String())
-	c.status = ST_UNKNOWN
-	return
-}
-
-func (c *Conn) Close() (err error) {
-	log.Infof("close %s.", c.String())
-	c.statusLock.Lock()
-	defer c.statusLock.Unlock()
-
+func (c *Conn) sendFin() (err error) {
 	fb := &FrameFin{StreamId: c.streamId}
 	err = c.session.SendFrame(fb)
 	if err != nil {
 		log.Errorf("%s", err)
 		return
 	}
-	c.final()
+
 	return
 }
+
 
 func (c *Conn) LocalAddr() net.Addr {
 	return &Addr{

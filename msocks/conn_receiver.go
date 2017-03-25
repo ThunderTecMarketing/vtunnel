@@ -13,10 +13,11 @@ func (c *Conn) ReceiveFrame(f Frame) (err error) {
 	case *FrameData:
 		return c.inData(ft)
 	case *FrameFin:
+		log.Debugf("receive FIN on %s.", c.String())
 		return c.inFin(ft)
 	case *FrameRst:
-		log.Debugf("reset %s.", c.String())
-		c.final()
+		log.Debugf("receive RST on %s.", c.String())
+		c.Close()
 	}
 	return
 }
@@ -32,7 +33,7 @@ func (c *Conn) inSynResult(errno uint32) (err error) {
 	if errno == ERR_NONE {
 		c.status = ST_EST
 	} else {
-		c.final()
+		c.Close()
 	}
 
 	select {
@@ -54,18 +55,23 @@ func (c *Conn) inData(ft *FrameData) (err error) {
 func (c *Conn) inFin(ft *FrameFin) (err error) {
 	// always need to close read pipe
 	// coz fin means remote will never send data anymore
-	c.rqueue.Close()
-
-	c.statusLock.Lock()
-	defer c.statusLock.Unlock()
-
-	c.final()
+	c.Close()
 	return
 }
 
+func (c *Conn) Close() error {
+	c.statusLock.Lock()
+	defer c.statusLock.Unlock()
 
-func (c *Conn) CloseFrame() error {
-	// maybe conn closed
-	c.final()
+	c.rqueue.Close()
+
+	err := c.session.RemoveStream(c.streamId)
+	if err != nil {
+		log.Errorf("%s", err)
+		return err
+	}
+
+	log.Infof("%s final.", c.String())
+	c.status = ST_UNKNOWN
 	return nil
 }

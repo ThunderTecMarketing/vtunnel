@@ -30,22 +30,23 @@ func NewSession(conn conn.ObjectIO, dnsServer *mdns.DNSServer) (s *Session) {
 		dnsServer: dnsServer,
 		streams:    make(map[uint16]Stream, 0),
 	}
-	log.Noticef("session %s created.", s.String())
+	log.Noticef("%s created.", s.String())
 	return
 }
 
 func (s *Session) String() string {
-	return "Session()"
+	return fmt.Sprintf("Session(%p)", s)
 }
 
 func (s *Session) Close() (err error) {
 	log.Warningf("%s close all streams,  %d streams closed", s.String(), len(s.streams))
 	defer s.conn.Close()
+
 	s.streamsLock.Lock()
 	defer s.streamsLock.Unlock()
 
 	for _, v := range s.streams {
-		v.CloseFrame()
+		v.Close()
 	}
 	return
 }
@@ -148,7 +149,7 @@ func (s *Session) on_syn(ft *FrameSyn) (err error) {
 			if err != nil {
 				log.Errorf("%s", err)
 			}
-			c.CloseFrame()
+			c.Close()
 			return
 		}
 
