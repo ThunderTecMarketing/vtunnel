@@ -6,22 +6,11 @@
 package tunnel
 
 import (
-	"time"
 	"errors"
 	"net"
 )
 
-var DefaultPrologue = "vtunnel"
-var KeyLength = 16
-
-var DefaultPeerTimeout = time.Duration(30 * time.Second)
-var DefaultTokenTimeout = time.Duration(10 * time.Second)
-
-var ErrInValidHandshakeStep = errors.New("Invalid handshake step")
 var ErrInValidKeyLength = errors.New("Invalid key length")
-var ErrPeerAlreadyExist = errors.New("Peer exists")
-var ErrPacketLengthInvalid = errors.New("Packet length is not in (0,MTU]")
-var ErrWriteFail = errors.New("Write fail")
 
 type TransportType string
 
@@ -31,7 +20,7 @@ var (
 )
 
 type ListenerHandler func(net.Listener) error
-type HandlerGenerator func (config *Config) ListenerHandler
+type HandlerGenerator func(config *Config) ListenerHandler
 
 func ResgisterHandlerGenerator(g HandlerGenerator) {
 	handlerGenerators = append(handlerGenerators, g)
@@ -44,6 +33,9 @@ type Config struct {
 	IsServer       bool
 	TransportKey   []byte
 	TransportType  TransportType
+	LogFilePath    string
+	LogLevel   string
+
 	LocalProxyType string
 }
 

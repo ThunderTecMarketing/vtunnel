@@ -37,7 +37,7 @@ type Conn struct {
 
 	chSynResult chan uint32
 
-	rlock       sync.Mutex // this should used to block reader and reader, not writer
+	rlock       sync.Mutex
 	wlock       sync.Mutex
 
 	rqueue      *util.Queue

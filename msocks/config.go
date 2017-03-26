@@ -11,9 +11,6 @@ const (
 	DIAL_RETRY   = 2
 	DIAL_TIMEOUT = 30
 	DNS_TIMEOUT  = 30
-
-	SHRINK_TIME = 3
-	DEBUGDNS    = false
 )
 
 const (
@@ -33,19 +30,20 @@ var (
 	ErrStreamNotExist  = errors.New("stream not exist.")
 	ErrUnexpectedPkg   = errors.New("unexpected package.")
 	ErrNotSyn          = errors.New("frame result in conn which status is not syn.")
-	ErrFinState        = errors.New("status not est or fin wait when get fin.")
 	ErrIdExist         = errors.New("frame sync stream id exist.")
 	ErrState           = errors.New("status error.")
 	ErrUnknownState    = errors.New("unknown status.")
 	ErrChanClosed      = errors.New("chan closed.")
 	ErrDnsTimeOut      = errors.New("dns timeout.")
 	ErrDnsMsgIllegal   = errors.New("dns message illegal.")
-	ErrNoDnsServer     = errors.New("no proper dns server.")
 )
 
-var (
-	log, _ = logger.NewLogger("", logger.DEBUG)
-)
+var log *logger.Logger
+
+func RegisterLogger(log_file string, log_level string) (err error) {
+	log, err = logger.NewLogger(log_file, log_level)
+	return
+}
 
 func init() {
 	rand.Seed(time.Now().UnixNano())

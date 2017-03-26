@@ -40,7 +40,6 @@ func (s *Session) Dial(srcAddr net.Addr, network, address string) (c *Conn, err 
 	}
 	c.streamId = streamid
 
-	//log.Info("try dial %s => %s.", s.conn.RemoteAddr().String(), address)
 	err = c.WaitForConn()
 	if err != nil {
 		return

@@ -2,6 +2,7 @@ package tunnel
 
 import (
 	"github.com/mholt/caddy"
+	"github.com/FTwOoO/vtunnel/msocks"
 )
 
 var directives = []string{
@@ -49,7 +50,6 @@ func SetupDirective(c *caddy.Controller) (err error) {
 					config.LocalProxyType, err = StringArg(c)
 				case "remoteAddr":
 					config.RemoteAddr, err = StringArg(c)
-
 				case "transportType":
 					var transportType string
 					transportType, err = StringArg(c)
@@ -58,7 +58,10 @@ func SetupDirective(c *caddy.Controller) (err error) {
 					var transportKey string
 					transportKey, err = StringArg(c)
 					config.TransportKey = []byte(transportKey)
-
+				case "logFile":
+					config.LogFilePath, err = StringArg(c)
+				case "logLevel":
+					config.LogLevel, err = StringArg(c)
 				}
 			}
 
@@ -68,5 +71,6 @@ func SetupDirective(c *caddy.Controller) (err error) {
 
 	}
 
+	msocks.RegisterLogger(config.LogFilePath, config.LogLevel)
 	return
 }

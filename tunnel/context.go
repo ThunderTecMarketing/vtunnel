@@ -45,8 +45,6 @@ func (h *tunnelContext) InspectServerBlocks(sourceFile string, serverBlocks []ca
 }
 
 func (h *tunnelContext) MakeServers() ([]caddy.Server, error) {
-
-	// then we create a server for each group
 	var servers []caddy.Server
 	for _, config := range h.configs {
 		s, err := NewServer(config)
@@ -62,7 +60,6 @@ func (h *tunnelContext) MakeServers() ([]caddy.Server, error) {
 
 func standardizeAddress(str string) (Host string, Port int, err error) {
 
-	// separate host and port
 	host, port, err := net.SplitHostPort(str)
 	if err != nil {
 		host, port, err = net.SplitHostPort(str + ":")

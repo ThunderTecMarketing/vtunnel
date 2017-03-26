@@ -2,9 +2,12 @@ localhost:10808 {
     client {
        proxyType  socks5
        remoteAddr  127.0.0.1:10809
+
        transportType TCP-Fragment-AheadGCM256-Msgpack
        transportKey  e01ee3207ea15d346c362b7e20cef3a1088ec0a11a1141b3584ed44e2bb69531
 
+       logFile "./vtunnel_client.log"
+       logLevel DEBUG
     }
 }
 
@@ -12,5 +15,8 @@ localhost:10809 {
     server {
        transportType TCP-Fragment-AheadGCM256-Msgpack
        transportKey  e01ee3207ea15d346c362b7e20cef3a1088ec0a11a1141b3584ed44e2bb69531
+
+       logFile "./vtunnel_server.log"
+       logLevel DEBUG
     }
 }

@@ -37,7 +37,6 @@ func init() {
 }
 
 
-// Server is the HTTP tunnel implementation.
 type Server struct {
 	listener    net.Listener
 	listenerMu  sync.Mutex
@@ -50,9 +49,7 @@ type Server struct {
 
 // ensure it satisfies the interface
 var _ caddy.GracefulServer = new(Server)
-
 var GracefulTimeout = 5 * time.Second
-var ErrServerClosed = errors.New("http: Server closed")
 
 func NewServer(config *Config) (*Server, error) {
 	s := &Server{
@@ -63,7 +60,6 @@ func NewServer(config *Config) (*Server, error) {
 
 	return s, nil
 }
-
 
 func (s *Server) Listen() (net.Listener, error) {
 

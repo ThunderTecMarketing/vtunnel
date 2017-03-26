@@ -111,7 +111,6 @@ func (s *Session) on_stream_packet(f Frame) (err error) {
 }
 
 func (s *Session) on_syn(ft *FrameSyn) (err error) {
-	// lock streamid temporary, with status sync recved
 	c := NewConn(ST_SYN_RECV, ft.GetStreamId(), s, ft.Address)
 
 	err = s.PutStreamIntoId(ft.GetStreamId(), c)
@@ -126,8 +125,6 @@ func (s *Session) on_syn(ft *FrameSyn) (err error) {
 		return nil
 	}
 
-	// it may toke long time to connect with target address
-	// so we use goroutine to return back loop
 	go func() {
 		var err error
 		var connection net.Conn
