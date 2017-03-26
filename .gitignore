@@ -24,3 +24,5 @@ _testmain.go
 *.prof
 .idea/*
 logs/*
+/vtunnel_client.log
+/vtunnel_server.log

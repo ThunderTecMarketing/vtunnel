@@ -12,10 +12,8 @@ import (
 	"net"
 	"runtime"
 	"errors"
-	"fmt"
 )
 
-var DefaultPort = 10010
 var ServerType = "tunnel"
 
 func init() {
@@ -26,7 +24,7 @@ func init() {
 		},
 		DefaultInput: func() caddy.Input {
 			return caddy.CaddyfileInput{
-				Contents:       []byte(fmt.Sprintf("0.0.0.0:%d {clients 12345678}", DefaultPort)),
+				Contents:       []byte(""),
 				ServerTypeName: ServerType,
 			}
 		},
@@ -34,8 +32,10 @@ func init() {
 			return new(tunnelContext)
 		},
 	})
-}
 
+	caddy.RegisterCaddyfileLoader(ConfigFileName, caddy.LoaderFunc(configLoader))
+
+}
 
 type Server struct {
 	listener    net.Listener

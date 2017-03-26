@@ -8,8 +8,11 @@ package tunnel
 import (
 	"errors"
 	"net"
+	"io/ioutil"
+	"github.com/mholt/caddy"
 )
 
+var ConfigFileName = "vtunnel.conf"
 var ErrInValidKeyLength = errors.New("Invalid key length")
 
 type TransportType string
@@ -34,7 +37,7 @@ type Config struct {
 	TransportKey   []byte
 	TransportType  TransportType
 	LogFilePath    string
-	LogLevel   string
+	LogLevel       string
 
 	LocalProxyType string
 }
@@ -48,4 +51,16 @@ func (s *Config) GetHandler() ListenerHandler {
 	}
 
 	return nil
+}
+
+func configLoader(serverType string) (caddy.Input, error) {
+	contents, err := ioutil.ReadFile(ConfigFileName)
+	if err != nil {
+		return nil, err
+	}
+	return caddy.CaddyfileInput{
+		Contents:       contents,
+		Filepath:       ConfigFileName,
+		ServerTypeName: serverType,
+	}, nil
 }

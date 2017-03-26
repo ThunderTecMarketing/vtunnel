@@ -30,9 +30,6 @@ import (
 
 func main() {
 
-	// set caddy file loader,
-	// load caddy file as http tunnel type,
-	// start the caddy enging
 	flag.Set("type", tunnel.ServerType)
 	caddymain.Run()
 }
