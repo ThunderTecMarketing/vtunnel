@@ -18,7 +18,7 @@ var ErrInValidKeyLength = errors.New("Invalid key length")
 type TransportType string
 
 var (
-	TRANSPORT1 = TransportType("TCP-Fragment-AheadGCM256-Msgpack")
+	TRANSPORT1 = TransportType("tcp-fragment-gcm256-msgpack")
 	handlerGenerators []HandlerGenerator = []HandlerGenerator{}
 )
 
