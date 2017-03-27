@@ -18,18 +18,125 @@
 package main
 
 import (
-	_ "github.com/mholt/caddy"
-	_ "github.com/mholt/caddy/caddyhttp"
-	"github.com/mholt/caddy/caddy/caddymain"
 	"flag"
+	"fmt"
+	"io/ioutil"
+	"log"
+	"os"
+	"github.com/mholt/caddy"
 	"github.com/FTwOoO/vtunnel/tunnel"
 	_ "github.com/FTwOoO/vtunnel/client"
 	_ "github.com/FTwOoO/vtunnel/server"
-
+	"gopkg.in/natefinch/lumberjack.v2"
 )
 
-func main() {
+const appName = "vtunnel"
 
-	flag.Set("type", tunnel.ServerType)
-	caddymain.Run()
+var serverType string = tunnel.ServerType
+
+var (
+	conf string
+	logfile string
+	validate bool
+)
+
+func init() {
+	caddy.TrapSignals()
+	flag.StringVar(&conf, "conf", "", "Caddyfile to load (default \"" + caddy.DefaultConfigFile + "\")")
+	flag.StringVar(&logfile, "log", "", "Process log file")
+	flag.StringVar(&caddy.PidFile, "pidfile", "", "Path to write pid file")
+	flag.BoolVar(&caddy.Quiet, "quiet", false, "Quiet mode (no initialization output)")
+	flag.BoolVar(&validate, "validate", false, "Parse the Caddyfile but do not start the server")
+	caddy.RegisterCaddyfileLoader("flag", caddy.LoaderFunc(confLoader))
+
 }
+
+func main() {
+	flag.Parse()
+
+	caddy.AppName = appName
+
+	// Set up process log before anything bad happens
+	switch logfile {
+	case "stdout":
+		log.SetOutput(os.Stdout)
+	case "stderr":
+		log.SetOutput(os.Stderr)
+	case "":
+		log.SetOutput(ioutil.Discard)
+	default:
+		log.SetOutput(&lumberjack.Logger{
+			Filename:   logfile,
+			MaxSize:    100,
+			MaxAge:     14,
+			MaxBackups: 10,
+		})
+	}
+
+	var err error
+	// Execute plugins that are registered to run as the process starts
+	err = caddy.StartupHooks(serverType)
+	if err != nil {
+		mustLogFatalf("%v", err)
+	}
+
+	// Get Caddyfile input
+	caddyfileinput, err := caddy.LoadCaddyfile(serverType)
+	if err != nil {
+		mustLogFatalf("%v", err)
+	}
+
+	if validate {
+		err := caddy.ValidateAndExecuteDirectives(caddyfileinput, nil, true)
+		if err != nil {
+			mustLogFatalf("%v", err)
+		}
+		msg := "Config file is valid"
+		fmt.Println(msg)
+		log.Printf("[INFO] %s", msg)
+		os.Exit(0)
+	}
+
+	// Start your engines
+	instance, err := caddy.Start(caddyfileinput)
+	if err != nil {
+		mustLogFatalf("%v", err)
+	}
+
+	// Twiddle your thumbs
+	instance.Wait()
+}
+
+// mustLogFatalf wraps log.Fatalf() in a way that ensures the
+// output is always printed to stderr so the user can see it
+// if the user is still there, even if the process log was not
+// enabled. If this process is an upgrade, however, and the user
+// might not be there anymore, this just logs to the process
+// log and exits.
+func mustLogFatalf(format string, args ...interface{}) {
+	if !caddy.IsUpgrade() {
+		log.SetOutput(os.Stderr)
+	}
+	log.Fatalf(format, args...)
+}
+
+func confLoader(serverType string) (caddy.Input, error) {
+	if conf == "" {
+		return nil, nil
+	}
+
+	if conf == "stdin" {
+		return caddy.CaddyfileFromPipe(os.Stdin, serverType)
+	}
+
+	contents, err := ioutil.ReadFile(conf)
+	if err != nil {
+		return nil, err
+	}
+	return caddy.CaddyfileInput{
+		Contents:       contents,
+		Filepath:       conf,
+		ServerTypeName: serverType,
+	}, nil
+}
+
