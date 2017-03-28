@@ -22,13 +22,14 @@ type GFWDialer struct {
 }
 
 func (d *GFWDialer) Dial(srcAddr net.Addr, network string, addr string) (net.Conn, error) {
-	session, err := d.Pool.Get()
-	if err != nil {
-		return nil, err
-	}
 
 	if d.Gfwlist.Hit(addr) {
 		return net.Dial(network, addr)
+	}
+
+	session, err := d.Pool.Get()
+	if err != nil {
+		return nil, err
 	}
 
 	return session.Dial(srcAddr, network, addr)
