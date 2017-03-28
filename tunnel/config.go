@@ -10,6 +10,7 @@ import (
 	"net"
 	"io/ioutil"
 	"github.com/mholt/caddy"
+	"github.com/FTwOoO/vtunnel/util"
 )
 
 var ConfigFileName = "vtunnel.conf"
@@ -31,7 +32,6 @@ func ResgisterHandlerGenerator(g HandlerGenerator) {
 
 type Config struct {
 	ListenAddr     string
-	RemoteAddr     string
 
 	IsServer       bool
 	TransportKey   []byte
@@ -39,7 +39,10 @@ type Config struct {
 	LogFilePath    string
 	LogLevel       string
 
+	//client only
 	LocalProxyType string
+	RemoteAddr     string
+	GFWListFile    string
 }
 
 func (s *Config) GetHandler() ListenerHandler {
@@ -54,13 +57,18 @@ func (s *Config) GetHandler() ListenerHandler {
 }
 
 func configLoader(serverType string) (caddy.Input, error) {
-	contents, err := ioutil.ReadFile(ConfigFileName)
+	configPath, err := util.GetConfigPath(ConfigFileName)
+	if err != nil {
+		return nil, err
+	}
+
+	contents, err := ioutil.ReadFile(configPath)
 	if err != nil {
 		return nil, err
 	}
 	return caddy.CaddyfileInput{
 		Contents:       contents,
-		Filepath:       ConfigFileName,
+		Filepath:       configPath,
 		ServerTypeName: serverType,
 	}, nil
 }

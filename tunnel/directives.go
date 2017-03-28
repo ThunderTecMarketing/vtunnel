@@ -71,6 +71,7 @@ func SetupDirective(c *caddy.Controller) (err error) {
 
 	}
 
+	config.GFWListFile = "gfwlist.lst"
 	msocks.RegisterLogger(config.LogFilePath, config.LogLevel)
 	return
 }

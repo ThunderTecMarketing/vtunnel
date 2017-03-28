@@ -1,13 +1,14 @@
 package client
 
 import (
-	"github.com/FTwOoO/vtunnel/msocks"
 	"net"
+	"github.com/FTwOoO/vtunnel/msocks"
 	"github.com/FTwOoO/vpncore/net/conn"
 	"github.com/FTwOoO/vpncore/net/conn/message/fragment"
 	"github.com/FTwOoO/vpncore/net/conn/message/ahead"
 	"github.com/FTwOoO/vpncore/net/conn/stream/transport"
 	"github.com/FTwOoO/vpncore/net/conn/message/msgpack"
+	"github.com/FTwOoO/vpncore/net/gfw"
 )
 
 type ContextDialer interface {
@@ -15,19 +16,23 @@ type ContextDialer interface {
 }
 
 //implements ContextDialer
-type NetDialer struct {
-	Pool *msocks.SessionPool
+type GFWDialer struct {
+	Pool    *msocks.SessionPool
+	Gfwlist *gfw.ItemSet
 }
 
-func (d *NetDialer) Dial(srcAddr net.Addr, network string, addr string) (net.Conn, error) {
+func (d *GFWDialer) Dial(srcAddr net.Addr, network string, addr string) (net.Conn, error) {
 	session, err := d.Pool.Get()
 	if err != nil {
 		return nil, err
 	}
+
+	if d.Gfwlist.Hit(addr) {
+		return net.Dial(network, addr)
+	}
+
 	return session.Dial(srcAddr, network, addr)
 }
-
-
 
 type ProtocolDialer struct {
 	RemoteAddr string
