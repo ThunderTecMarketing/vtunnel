@@ -1,7 +1,7 @@
 package msocks
 
 import (
-	"github.com/FTwOoO/vpncore/net/conn/message/msgpack"
+	"github.com/FTwOoO/vpncore/net/conn/message/object/msgpack"
 	"fmt"
 	"reflect"
 )

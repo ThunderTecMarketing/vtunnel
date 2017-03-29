@@ -5,9 +5,9 @@ import (
 	"github.com/FTwOoO/vtunnel/msocks"
 	"github.com/FTwOoO/vpncore/net/conn"
 	"github.com/FTwOoO/vpncore/net/conn/message/fragment"
-	"github.com/FTwOoO/vpncore/net/conn/message/ahead"
-	"github.com/FTwOoO/vpncore/net/conn/stream/transport"
-	"github.com/FTwOoO/vpncore/net/conn/message/msgpack"
+	"github.com/FTwOoO/vpncore/net/conn/message/encryption"
+	"github.com/FTwOoO/vpncore/net/conn/stream/transport/tcp"
+	"github.com/FTwOoO/vpncore/net/conn/message/object/msgpack"
 	"github.com/FTwOoO/vpncore/net/gfw"
 )
 
@@ -41,13 +41,13 @@ type ProtocolDialer struct {
 }
 
 func (c *ProtocolDialer) Dial() (connection conn.ObjectIO, err error) {
-	context1 := &transport.TransportStreamContext{
+	context1 := &transport.TCPTransportStreamContext{
 		Protocol:conn.PROTO_TCP,
 		ListenAddr:"",
 		RemoveAddr:c.RemoteAddr}
 
 	context2 := new(fragment.FragmentContext)
-	context3 := ahead.NewAheadContext([]byte(c.Key))
+	context3 := encryption.NewGCM256Context([]byte(c.Key))
 	context4 := new(msgpack.MsgpackContext)
 
 	contexts := []conn.Context{context1, context2, context3, context4}

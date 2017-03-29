@@ -3,10 +3,10 @@ package server
 import (
 	"net"
 	"github.com/FTwOoO/vpncore/net/conn/message/fragment"
-	"github.com/FTwOoO/vpncore/net/conn/message/ahead"
+	"github.com/FTwOoO/vpncore/net/conn/message/encryption"
 	"github.com/FTwOoO/vpncore/net/conn"
-	"github.com/FTwOoO/vpncore/net/conn/stream/transport"
-	"github.com/FTwOoO/vpncore/net/conn/message/msgpack"
+	"github.com/FTwOoO/vpncore/net/conn/stream/transport/tcp"
+	"github.com/FTwOoO/vpncore/net/conn/message/object/msgpack"
 	"github.com/FTwOoO/vtunnel/msocks"
 	"github.com/FTwOoO/vtunnel/tunnel"
 )
@@ -18,12 +18,12 @@ func init() {
 func GetHandler(config *tunnel.Config) tunnel.ListenerHandler {
 	if config.IsServer == true && config.TransportType == tunnel.TRANSPORT1 {
 		return func(ln net.Listener) error {
-			context1 := &transport.TransportStreamContext2{
+			context1 := &transport.CustomTransportStreamContext{
 				Listener: ln,
 			}
 
 			context2 := new(fragment.FragmentContext)
-			context3 := ahead.NewAheadContext([]byte(config.TransportKey))
+			context3 := encryption.NewGCM256Context([]byte(config.TransportKey))
 			context4 := new(msgpack.MsgpackContext)
 
 			contexts := []conn.Context{context1, context2, context3, context4}
