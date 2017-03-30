@@ -56,6 +56,7 @@ func (c *Conn) inFin(ft *FrameFin) (err error) {
 	// always need to close read pipe
 	// coz fin means remote will never send data anymore
 	c.Close()
+	log.Debug("Receive FIN")
 	return
 }
 

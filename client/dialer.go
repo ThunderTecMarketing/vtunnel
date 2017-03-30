@@ -23,7 +23,12 @@ type GFWDialer struct {
 
 func (d *GFWDialer) Dial(srcAddr net.Addr, network string, addr string) (net.Conn, error) {
 
-	if d.Gfwlist.Hit(addr) {
+	host, _, err := net.SplitHostPort(addr)
+	if err != nil {
+		return nil, err
+	}
+
+	if d.Gfwlist.Hit(host) == false {
 		return net.Dial(network, addr)
 	}
 
