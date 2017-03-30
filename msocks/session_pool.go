@@ -99,10 +99,6 @@ func (sp *SessionPool) Get() (sess *Session, err error) {
 	return
 }
 
-// Randomly select a server, try to connect with it. If it is failed, try next.
-// Repeat for DIAL_RETRY times.
-// Each time it will take 2 ^ (net.ipv4.tcp_syn_retries + 1) - 1 second(s).
-// eg. net.ipv4.tcp_syn_retries = 4, connect will timeout in 2 ^ (4 + 1) -1 = 31s.
 func (sp *SessionPool) createSession(checker func() bool) (err error) {
 	sp.factoryMu.Lock()
 	defer sp.factoryMu.Unlock()

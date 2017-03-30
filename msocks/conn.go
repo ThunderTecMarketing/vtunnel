@@ -25,6 +25,8 @@ type Stream interface {
 	String() string
 }
 
+var _ Stream = new(Conn)
+
 
 //implements Stream interface
 type Conn struct {

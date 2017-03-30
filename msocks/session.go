@@ -13,6 +13,9 @@ import (
 	"github.com/FTwOoO/vtunnel/util"
 )
 
+var _ FrameSender = new(Session)
+
+
 type Session struct {
 	conn        conn.ObjectIO
 	next_id     uint16
@@ -74,19 +77,19 @@ func (s *Session) Run() {
 			log.Errorf("%s", ErrUnexpectedPkg.Error())
 			return
 		case *FrameSynResult, *FrameData, *FrameFin, *FrameRst:
-			err = s.on_stream_packet(f)
+			err = s.onStreamFrame(f)
 			if err != nil {
 				log.Errorf("%s send to stream[%d] failed, err: %s.", s.String(), f.GetStreamId(), err.Error())
 				continue
 			}
 		case *FrameSyn:
-			err = s.on_syn(ft)
+			err = s.onSyncFrame(ft)
 			if err != nil {
 				log.Errorf("syn failed: %s", err.Error())
 				return
 			}
 		case *FrameDns:
-			err = s.on_dns(ft)
+			err = s.onDNSFrame(ft)
 			if err != nil {
 				log.Errorf("dns failed: %s", err.Error())
 				return
@@ -96,7 +99,7 @@ func (s *Session) Run() {
 	}
 }
 
-func (s *Session) on_stream_packet(f Frame) (err error) {
+func (s *Session) onStreamFrame(f Frame) (err error) {
 	streamid := f.GetStreamId()
 	c, err := s.GetStreamById(streamid)
 	if err != nil {
@@ -110,7 +113,7 @@ func (s *Session) on_stream_packet(f Frame) (err error) {
 	return nil
 }
 
-func (s *Session) on_syn(ft *FrameSyn) (err error) {
+func (s *Session) onSyncFrame(ft *FrameSyn) (err error) {
 	c := NewConn(ST_SYN_RECV, ft.GetStreamId(), s, ft.Address)
 
 	err = s.PutStreamIntoId(ft.GetStreamId(), c)
@@ -178,7 +181,7 @@ func (s *Session) writeDNS(ctx mdns.QueryContext, m []byte) (err error) {
 	return
 }
 
-func (s *Session) on_dns(ft *FrameDns) (err error) {
+func (s *Session) onDNSFrame(ft *FrameDns) (err error) {
 	req := new(dns.Msg)
 	err = req.Unpack(ft.Data)
 	if err != nil {

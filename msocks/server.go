@@ -4,7 +4,6 @@ import (
 	"errors"
 	"github.com/FTwOoO/vpncore/net/conn"
 	mdns "github.com/FTwOoO/vpncore/net/dns"
-
 )
 
 type MsocksServer struct {
