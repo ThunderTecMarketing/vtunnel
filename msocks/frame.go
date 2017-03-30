@@ -15,6 +15,17 @@ func init() {
 	msgpack.RegisterMessage(FrameDns{}.Cmd(), reflect.TypeOf(FrameDns{}))
 }
 
+type SyncResultCode string
+
+const (
+	ERR_NONE = SyncResultCode("NO ERROR")
+	ERR_AUTH = SyncResultCode("AUTH ERROR")
+	ERR_IDEXIST = SyncResultCode("ID NOT EXIST")
+	ERR_CONNFAILED = SyncResultCode("CONN FAILED")
+	ERR_TIMEOUT = SyncResultCode("TIMEOUT")
+	ERR_CLOSED = SyncResultCode("CONN CLOSED")
+)
+
 const (
 	MSG_UNKNOWN msgpack.MessageType = 1
 	MSG_RESULT msgpack.MessageType = 2
@@ -60,7 +71,7 @@ type FrameSender interface {
 
 type FrameSynResult struct {
 	StreamId uint16
-	Errno    uint32
+	Errno    SyncResultCode
 }
 
 func (f FrameSynResult) GetStreamId() uint16 {

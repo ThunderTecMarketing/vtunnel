@@ -22,7 +22,7 @@ func (c *Conn) ReceiveFrame(f Frame) (err error) {
 	return
 }
 
-func (c *Conn) inSynResult(errno uint32) (err error) {
+func (c *Conn) inSynResult(errno SyncResultCode) (err error) {
 	c.statusLock.Lock()
 	defer c.statusLock.Unlock()
 
@@ -55,12 +55,14 @@ func (c *Conn) inData(ft *FrameData) (err error) {
 func (c *Conn) inFin(ft *FrameFin) (err error) {
 	// always need to close read pipe
 	// coz fin means remote will never send data anymore
-	c.Close()
 	log.Debug("Receive FIN")
+	c.Close()
 	return
 }
 
 func (c *Conn) Close() error {
+	log.Infof("close %s", c.String())
+
 	c.statusLock.Lock()
 	defer c.statusLock.Unlock()
 
@@ -72,7 +74,6 @@ func (c *Conn) Close() error {
 		return err
 	}
 
-	log.Infof("%s final.", c.String())
 	c.status = ST_UNKNOWN
 	return nil
 }

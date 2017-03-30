@@ -216,11 +216,11 @@ func (z *FrameDns) DecodeMsg(dc *msgp.Reader) (err error) {
 		err = msgp.ArrayError{Wanted: 2, Got: zajw}
 		return
 	}
-	z.Data, err = dc.ReadBytes(z.Data)
+	z.StreamId, err = dc.ReadUint16()
 	if err != nil {
 		return
 	}
-	z.StreamId, err = dc.ReadUint16()
+	z.Data, err = dc.ReadBytes(z.Data)
 	if err != nil {
 		return
 	}
@@ -234,11 +234,11 @@ func (z *FrameDns) EncodeMsg(en *msgp.Writer) (err error) {
 	if err != nil {
 		return err
 	}
-	err = en.WriteBytes(z.Data)
+	err = en.WriteUint16(z.StreamId)
 	if err != nil {
 		return
 	}
-	err = en.WriteUint16(z.StreamId)
+	err = en.WriteBytes(z.Data)
 	if err != nil {
 		return
 	}
@@ -250,8 +250,8 @@ func (z *FrameDns) MarshalMsg(b []byte) (o []byte, err error) {
 	o = msgp.Require(b, z.Msgsize())
 	// array header, size 2
 	o = append(o, 0x92)
-	o = msgp.AppendBytes(o, z.Data)
 	o = msgp.AppendUint16(o, z.StreamId)
+	o = msgp.AppendBytes(o, z.Data)
 	return
 }
 
@@ -266,11 +266,11 @@ func (z *FrameDns) UnmarshalMsg(bts []byte) (o []byte, err error) {
 		err = msgp.ArrayError{Wanted: 2, Got: zwht}
 		return
 	}
-	z.Data, bts, err = msgp.ReadBytesBytes(bts, z.Data)
+	z.StreamId, bts, err = msgp.ReadUint16Bytes(bts)
 	if err != nil {
 		return
 	}
-	z.StreamId, bts, err = msgp.ReadUint16Bytes(bts)
+	z.Data, bts, err = msgp.ReadBytesBytes(bts, z.Data)
 	if err != nil {
 		return
 	}
@@ -280,7 +280,7 @@ func (z *FrameDns) UnmarshalMsg(bts []byte) (o []byte, err error) {
 
 // Msgsize returns an upper bound estimate of the number of bytes occupied by the serialized message
 func (z *FrameDns) Msgsize() (s int) {
-	s = 1 + msgp.BytesPrefixSize + len(z.Data) + msgp.Uint16Size
+	s = 1 + msgp.Uint16Size + msgp.BytesPrefixSize + len(z.Data)
 	return
 }
 
@@ -520,7 +520,11 @@ func (z *FrameSynResult) DecodeMsg(dc *msgp.Reader) (err error) {
 				return
 			}
 		case "Errno":
-			z.Errno, err = dc.ReadUint32()
+			{
+				var zcxo string
+				zcxo, err = dc.ReadString()
+				z.Errno = SyncResultCode(zcxo)
+			}
 			if err != nil {
 				return
 			}
@@ -551,7 +555,7 @@ func (z FrameSynResult) EncodeMsg(en *msgp.Writer) (err error) {
 	if err != nil {
 		return err
 	}
-	err = en.WriteUint32(z.Errno)
+	err = en.WriteString(string(z.Errno))
 	if err != nil {
 		return
 	}
@@ -567,7 +571,7 @@ func (z FrameSynResult) MarshalMsg(b []byte) (o []byte, err error) {
 	o = msgp.AppendUint16(o, z.StreamId)
 	// string "Errno"
 	o = append(o, 0xa5, 0x45, 0x72, 0x72, 0x6e, 0x6f)
-	o = msgp.AppendUint32(o, z.Errno)
+	o = msgp.AppendString(o, string(z.Errno))
 	return
 }
 
@@ -575,13 +579,13 @@ func (z FrameSynResult) MarshalMsg(b []byte) (o []byte, err error) {
 func (z *FrameSynResult) UnmarshalMsg(bts []byte) (o []byte, err error) {
 	var field []byte
 	_ = field
-	var zcxo uint32
-	zcxo, bts, err = msgp.ReadMapHeaderBytes(bts)
+	var zeff uint32
+	zeff, bts, err = msgp.ReadMapHeaderBytes(bts)
 	if err != nil {
 		return
 	}
-	for zcxo > 0 {
-		zcxo--
+	for zeff > 0 {
+		zeff--
 		field, bts, err = msgp.ReadMapKeyZC(bts)
 		if err != nil {
 			return
@@ -593,7 +597,11 @@ func (z *FrameSynResult) UnmarshalMsg(bts []byte) (o []byte, err error) {
 				return
 			}
 		case "Errno":
-			z.Errno, bts, err = msgp.ReadUint32Bytes(bts)
+			{
+				var zrsw string
+				zrsw, bts, err = msgp.ReadStringBytes(bts)
+				z.Errno = SyncResultCode(zrsw)
+			}
 			if err != nil {
 				return
 			}
@@ -610,6 +618,55 @@ func (z *FrameSynResult) UnmarshalMsg(bts []byte) (o []byte, err error) {
 
 // Msgsize returns an upper bound estimate of the number of bytes occupied by the serialized message
 func (z FrameSynResult) Msgsize() (s int) {
-	s = 1 + 9 + msgp.Uint16Size + 6 + msgp.Uint32Size
+	s = 1 + 9 + msgp.Uint16Size + 6 + msgp.StringPrefixSize + len(string(z.Errno))
+	return
+}
+
+// DecodeMsg implements msgp.Decodable
+func (z *SyncResultCode) DecodeMsg(dc *msgp.Reader) (err error) {
+	{
+		var zxpk string
+		zxpk, err = dc.ReadString()
+		(*z) = SyncResultCode(zxpk)
+	}
+	if err != nil {
+		return
+	}
+	return
+}
+
+// EncodeMsg implements msgp.Encodable
+func (z SyncResultCode) EncodeMsg(en *msgp.Writer) (err error) {
+	err = en.WriteString(string(z))
+	if err != nil {
+		return
+	}
+	return
+}
+
+// MarshalMsg implements msgp.Marshaler
+func (z SyncResultCode) MarshalMsg(b []byte) (o []byte, err error) {
+	o = msgp.Require(b, z.Msgsize())
+	o = msgp.AppendString(o, string(z))
+	return
+}
+
+// UnmarshalMsg implements msgp.Unmarshaler
+func (z *SyncResultCode) UnmarshalMsg(bts []byte) (o []byte, err error) {
+	{
+		var zdnj string
+		zdnj, bts, err = msgp.ReadStringBytes(bts)
+		(*z) = SyncResultCode(zdnj)
+	}
+	if err != nil {
+		return
+	}
+	o = bts
+	return
+}
+
+// Msgsize returns an upper bound estimate of the number of bytes occupied by the serialized message
+func (z SyncResultCode) Msgsize() (s int) {
+	s = msgp.StringPrefixSize + len(string(z))
 	return
 }

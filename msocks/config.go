@@ -8,34 +8,25 @@ import (
 )
 
 const (
-	DIAL_RETRY   = 2
-	DIAL_TIMEOUT = 30
-	DNS_TIMEOUT  = 30
-)
-
-const (
-	ERR_NONE = iota
-	ERR_AUTH
-	ERR_IDEXIST
-	ERR_CONNFAILED
-	ERR_TIMEOUT
-	ERR_CLOSED
+	DIAL_RETRY = 2
+	DIAL_TIMEOUT = 5
+	DNS_TIMEOUT = 30
 )
 
 var (
-	ErrNoSession       = errors.New("session in pool but can't pick one.")
+	ErrNoSession = errors.New("session in pool but can't pick one.")
 	ErrSessionNotFound = errors.New("session not found.")
-	ErrAuthFailed      = errors.New("auth failed.")
-	ErrAuthTimeout     = errors.New("auth timeout %s.")
-	ErrStreamNotExist  = errors.New("stream not exist.")
-	ErrUnexpectedPkg   = errors.New("unexpected package.")
-	ErrNotSyn          = errors.New("frame result in conn which status is not syn.")
-	ErrIdExist         = errors.New("frame sync stream id exist.")
-	ErrState           = errors.New("status error.")
-	ErrUnknownState    = errors.New("unknown status.")
-	ErrChanClosed      = errors.New("chan closed.")
-	ErrDnsTimeOut      = errors.New("dns timeout.")
-	ErrDnsMsgIllegal   = errors.New("dns message illegal.")
+	ErrAuthFailed = errors.New("auth failed.")
+	ErrAuthTimeout = errors.New("auth timeout %s.")
+	ErrStreamNotExist = errors.New("stream not exist.")
+	ErrUnexpectedPkg = errors.New("unexpected package.")
+	ErrNotSyn = errors.New("frame result in conn which status is not syn.")
+	ErrIdExist = errors.New("frame sync stream id exist.")
+	ErrState = errors.New("status error.")
+	ErrUnknownState = errors.New("unknown status.")
+	ErrChanClosed = errors.New("chan closed.")
+	ErrDnsTimeOut = errors.New("dns timeout.")
+	ErrDnsMsgIllegal = errors.New("dns message illegal.")
 )
 
 var log *logger.Logger

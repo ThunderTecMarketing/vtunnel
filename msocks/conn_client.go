@@ -2,7 +2,7 @@ package msocks
 
 import "time"
 
-func recvWithTimeout(ch chan uint32, t time.Duration) (errno uint32) {
+func recvWithTimeout(ch chan SyncResultCode, t time.Duration) (errno SyncResultCode) {
 	var ok bool
 	ch_timeout := time.After(t)
 	select {
@@ -17,12 +17,12 @@ func recvWithTimeout(ch chan uint32, t time.Duration) (errno uint32) {
 }
 
 func (c *Conn) WaitForConn() (err error) {
-	c.chSynResult = make(chan uint32, 0)
+	c.chSynResult = make(chan SyncResultCode, 0)
 
 	fb := &FrameSyn{StreamId:c.streamId, Address:c.Address}
 	err = c.session.SendFrame(fb)
 	if err != nil {
-		log.Errorf("%s", err)
+		log.Errorf("Send fail:%s, close", err)
 		c.Close()
 		return
 	}
@@ -32,7 +32,7 @@ func (c *Conn) WaitForConn() (err error) {
 		log.Errorf("%s connect to remote failed for %d.", c.String(), errno)
 		c.Close()
 	} else {
-		log.Infof("connected to: %s:%d", c.Address.DstHost, c.Address.DstPort)
+		log.Infof("client dial success, connected to: %s:%d", c.Address.DstHost, c.Address.DstPort)
 	}
 
 	c.chSynResult = nil

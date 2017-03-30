@@ -25,6 +25,7 @@ type Stream interface {
 	String() string
 }
 
+
 //implements Stream interface
 type Conn struct {
 	Address     ConnInfo
@@ -35,7 +36,7 @@ type Conn struct {
 	session     *Session
 	streamId    uint16
 
-	chSynResult chan uint32
+	chSynResult chan SyncResultCode
 
 	rlock       sync.Mutex
 	wlock       sync.Mutex
