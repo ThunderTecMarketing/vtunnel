@@ -27,7 +27,6 @@ import (
 	"github.com/FTwOoO/vtunnel/tunnel"
 	_ "github.com/FTwOoO/vtunnel/client"
 	_ "github.com/FTwOoO/vtunnel/server"
-	"gopkg.in/natefinch/lumberjack.v2"
 )
 
 const appName = "vtunnel"
@@ -36,14 +35,12 @@ var serverType string = tunnel.ServerType
 
 var (
 	conf string
-	logfile string
 	validate bool
 )
 
 func init() {
 	caddy.TrapSignals()
 	flag.StringVar(&conf, "conf", "", "Caddyfile to load (default \"" + caddy.DefaultConfigFile + "\")")
-	flag.StringVar(&logfile, "log", "", "Process log file")
 	flag.StringVar(&caddy.PidFile, "pidfile", "", "Path to write pid file")
 	flag.BoolVar(&caddy.Quiet, "quiet", false, "Quiet mode (no initialization output)")
 	flag.BoolVar(&validate, "validate", false, "Parse the Caddyfile but do not start the server")
@@ -55,23 +52,6 @@ func main() {
 	flag.Parse()
 
 	caddy.AppName = appName
-
-	// Set up process log before anything bad happens
-	switch logfile {
-	case "stdout":
-		log.SetOutput(os.Stdout)
-	case "stderr":
-		log.SetOutput(os.Stderr)
-	case "":
-		log.SetOutput(ioutil.Discard)
-	default:
-		log.SetOutput(&lumberjack.Logger{
-			Filename:   logfile,
-			MaxSize:    100,
-			MaxAge:     14,
-			MaxBackups: 10,
-		})
-	}
 
 	var err error
 	// Execute plugins that are registered to run as the process starts

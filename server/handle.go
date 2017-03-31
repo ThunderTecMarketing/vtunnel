@@ -33,7 +33,7 @@ func GetHandler(config *tunnel.Config) tunnel.ListenerHandler {
 				return err
 			}
 
-			msocksServer, err := msocks.NewMsocksServer(msocks.DefaultTcpDialer)
+			msocksServer, err := NewServer(msocks.DefaultTcpDialer)
 			if err != nil {
 				return err
 			}

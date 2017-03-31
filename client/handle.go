@@ -30,7 +30,7 @@ func GetHandler(config *tunnel.Config) tunnel.ListenerHandler {
 
 			dialer := &GFWDialer{
 				Gfwlist:gfwlist,
-				Pool:msocks.CreateSessionPool(0, 30,
+				Pool:msocks.NewClientSessionPool(0, 30,
 					[]msocks.ObjectDialer{&ProtocolDialer{
 						RemoteAddr:config.RemoteAddr,
 						Key:config.TransportKey},

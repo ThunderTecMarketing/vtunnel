@@ -16,11 +16,10 @@ func (f DialerFunc) Dial(network string, addr string) (net.Conn, error) {
 	return f(network, addr)
 }
 
-type TcpDialer struct {
-}
+type TcpDialer struct {}
 
 func (td *TcpDialer) Dial(network, address string) (net.Conn, error) {
-	return net.Dial(network, address)
+	return td.DialTimeout(network, address, DIAL_TIMEOUT * time.Second)
 }
 
 func (td *TcpDialer) DialTimeout(network, address string, timeout time.Duration) (net.Conn, error) {

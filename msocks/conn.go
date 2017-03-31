@@ -28,7 +28,6 @@ type Stream interface {
 var _ Stream = new(Conn)
 
 
-//implements Stream interface
 type Conn struct {
 	Address     ConnInfo
 

@@ -29,7 +29,7 @@ func (c *Conn) WaitForConn() (err error) {
 
 	errno := recvWithTimeout(c.chSynResult, DIAL_TIMEOUT * time.Second)
 	if errno != ERR_NONE {
-		log.Errorf("%s connect to remote failed for %d.", c.String(), errno)
+		log.Errorf("%s connect to remote failed for %v", c.String(), errno)
 		c.Close()
 	} else {
 		log.Infof("client dial success, connected to: %s:%d", c.Address.DstHost, c.Address.DstPort)

@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"net"
 	"sync"
-	"time"
 	"github.com/miekg/dns"
 	"github.com/FTwOoO/vpncore/net/conn"
 
@@ -15,23 +14,23 @@ import (
 
 var _ FrameSender = new(Session)
 
-
 type Session struct {
-	conn        conn.ObjectIO
-	next_id     uint16
+	conn         conn.ObjectIO
+	next_id      uint16
 
-	streamsLock sync.Mutex
-	streams     map[uint16]Stream
+	streamsLock  sync.Mutex
+	streams      map[uint16]Stream
 
-	dialer      Dialer
-	dnsServer   *mdns.DNSServer
+	remoteDialer Dialer
+	dnsServer    *mdns.DNSServer
 }
 
-func NewSession(conn conn.ObjectIO, dnsServer *mdns.DNSServer) (s *Session) {
+func NewSession(conn conn.ObjectIO, dnsServer *mdns.DNSServer, remoteDialer Dialer) (s *Session) {
 	s = &Session{
 		conn:     conn,
 		dnsServer: dnsServer,
 		streams:    make(map[uint16]Stream, 0),
+		remoteDialer: remoteDialer,
 	}
 	log.Noticef("%s created.", s.String())
 	return
@@ -136,11 +135,7 @@ func (s *Session) onSyncFrame(ft *FrameSyn) (err error) {
 		var address = fmt.Sprintf("%s:%d", ft.Address.DstHost, ft.Address.DstPort)
 		log.Debugf("try to connect %s => %s:%s.", c.String(), network, address)
 
-		if dialer, ok := s.dialer.(*TcpDialer); ok {
-			connection, err = dialer.DialTimeout(network, address, DIAL_TIMEOUT * time.Second)
-		} else {
-			connection, err = s.dialer.Dial(network, address)
-		}
+		connection, err = s.remoteDialer.Dial(network, address)
 
 		if err != nil {
 			log.Errorf("%s", err)
@@ -159,9 +154,12 @@ func (s *Session) onSyncFrame(ft *FrameSyn) (err error) {
 			log.Errorf("%s", err)
 			return
 		}
-		c.status = ST_EST
 
-		go util.CopyLink(connection, c)
+		c.statusLock.Lock()
+		c.status = ST_EST
+		c.statusLock.Unlock()
+
+		go util.Pipe(connection, c)
 		return
 	}()
 	return

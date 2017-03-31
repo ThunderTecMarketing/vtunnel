@@ -5,7 +5,7 @@ import (
 	"sync"
 )
 
-type SessionPool struct {
+type ClientSessionPool struct {
 	sessionsMu     sync.Mutex
 	sessions       map[*Session]struct{}
 
@@ -16,14 +16,14 @@ type SessionPool struct {
 	MaxConn        int
 }
 
-func CreateSessionPool(MinSess, MaxConn int, dialers []ObjectDialer) (sp *SessionPool) {
+func NewClientSessionPool(MinSess, MaxConn int, dialers []ObjectDialer) (sp *ClientSessionPool) {
 	if MinSess == 0 {
 		MinSess = 1
 	}
 	if MaxConn == 0 {
 		MaxConn = 16
 	}
-	sp = &SessionPool{
+	sp = &ClientSessionPool{
 		sessions:    make(map[*Session]struct{}, 0),
 		MinSess: MinSess,
 		MaxConn: MaxConn,
@@ -32,13 +32,13 @@ func CreateSessionPool(MinSess, MaxConn int, dialers []ObjectDialer) (sp *Sessio
 	return
 }
 
-func (sp *SessionPool) AddSessionDialer(sd ObjectDialer) {
+func (sp *ClientSessionPool) AddSessionDialer(sd ObjectDialer) {
 	sp.factoryMu.Lock()
 	defer sp.factoryMu.Unlock()
 	sp.SessionDialers = append(sp.SessionDialers, sd)
 }
 
-func (sp *SessionPool) CleanSessions() {
+func (sp *ClientSessionPool) CleanSessions() {
 	sp.sessionsMu.Lock()
 	defer sp.sessionsMu.Unlock()
 	for s, _ := range sp.sessions {
@@ -47,21 +47,21 @@ func (sp *SessionPool) CleanSessions() {
 	sp.sessions = make(map[*Session]struct{}, 0)
 }
 
-func (sp *SessionPool) GetSessionsCount() int {
+func (sp *ClientSessionPool) GetSessionsCount() int {
 	return len(sp.sessions)
 }
 
-func (sp *SessionPool) GetSessions() (sess map[*Session]struct{}) {
+func (sp *ClientSessionPool) GetSessions() (sess map[*Session]struct{}) {
 	return sp.sessions
 }
 
-func (sp *SessionPool) Add(s *Session) {
+func (sp *ClientSessionPool) Add(s *Session) {
 	sp.sessionsMu.Lock()
 	defer sp.sessionsMu.Unlock()
 	sp.sessions[s] = struct{}{}
 }
 
-func (sp *SessionPool) Remove(s *Session) (err error) {
+func (sp *ClientSessionPool) Remove(s *Session) (err error) {
 	sp.sessionsMu.Lock()
 	defer sp.sessionsMu.Unlock()
 	if _, ok := sp.sessions[s]; !ok {
@@ -71,7 +71,7 @@ func (sp *SessionPool) Remove(s *Session) (err error) {
 	return
 }
 
-func (sp *SessionPool) Get() (sess *Session, err error) {
+func (sp *ClientSessionPool) Get() (sess *Session, err error) {
 	if len(sp.sessions) == 0 {
 		err = sp.createSession(func() bool {
 			return len(sp.sessions) == 0
@@ -99,7 +99,7 @@ func (sp *SessionPool) Get() (sess *Session, err error) {
 	return
 }
 
-func (sp *SessionPool) createSession(checker func() bool) (err error) {
+func (sp *ClientSessionPool) createSession(checker func() bool) (err error) {
 	sp.factoryMu.Lock()
 	defer sp.factoryMu.Unlock()
 
@@ -120,7 +120,7 @@ func (sp *SessionPool) createSession(checker func() bool) (err error) {
 			continue
 		}
 
-		sess = NewSession(conn, nil)
+		sess = NewSession(conn, nil, nil)
 		break
 	}
 
@@ -134,7 +134,7 @@ func (sp *SessionPool) createSession(checker func() bool) (err error) {
 	return
 }
 
-func (sp *SessionPool) getLessUsedSession() (sess *Session, size int) {
+func (sp *ClientSessionPool) getLessUsedSession() (sess *Session, size int) {
 	size = -1
 	for s, _ := range sp.sessions {
 		if size == -1 || s.GetStreamsSize() < size {
@@ -145,7 +145,7 @@ func (sp *SessionPool) getLessUsedSession() (sess *Session, size int) {
 	return
 }
 
-func (sp *SessionPool) RunSession(sess *Session) {
+func (sp *ClientSessionPool) RunSession(sess *Session) {
 	defer func() {
 		err := sp.Remove(sess)
 		if err != nil {

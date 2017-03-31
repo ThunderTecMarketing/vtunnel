@@ -1,6 +1,5 @@
 package msocks
 
-//implements FrameReceiver interface
 func (c *Conn) ReceiveFrame(f Frame) (err error) {
 	switch ft := f.(type) {
 	default:
@@ -53,8 +52,6 @@ func (c *Conn) inData(ft *FrameData) (err error) {
 }
 
 func (c *Conn) inFin(ft *FrameFin) (err error) {
-	// always need to close read pipe
-	// coz fin means remote will never send data anymore
 	log.Debug("Receive FIN")
 	c.Close()
 	return

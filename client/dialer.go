@@ -15,9 +15,10 @@ type ContextDialer interface {
 	Dial(srcAddr net.Addr, network string, addr string) (net.Conn, error)
 }
 
-//implements ContextDialer
+var _ ContextDialer = new(GFWDialer)
+
 type GFWDialer struct {
-	Pool    *msocks.SessionPool
+	Pool    *msocks.ClientSessionPool
 	Gfwlist *gfw.ItemSet
 }
 
