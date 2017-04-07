@@ -54,11 +54,9 @@ func main() {
 	caddy.AppName = appName
 
 	var err error
-	// Execute plugins that are registered to run as the process starts
-	err = caddy.StartupHooks(serverType)
-	if err != nil {
-		mustLogFatalf("%v", err)
-	}
+
+	// Executes Startup events
+	caddy.EmitEvent(caddy.StartupEvent)
 
 	// Get Caddyfile input
 	caddyfileinput, err := caddy.LoadCaddyfile(serverType)

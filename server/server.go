@@ -24,7 +24,7 @@ func NewServer(dialer msocks.Dialer) (ms *Server, err error) {
 	}
 
 	ms = &Server{
-		remoteDialer:      dialer,
+		remoteDialer: dialer,
 		dnsServer: dnsServer,
 	}
 
