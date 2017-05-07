@@ -42,7 +42,6 @@ type Config struct {
 	//client only
 	LocalProxyType string
 	RemoteAddr     string
-	GFWListFile    string
 }
 
 func (s *Config) GetHandler() ListenerHandler {

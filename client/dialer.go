@@ -8,29 +8,23 @@ import (
 	"github.com/FTwOoO/vpncore/net/conn/message/encryption"
 	"github.com/FTwOoO/vpncore/net/conn/stream/transport/tcp"
 	"github.com/FTwOoO/vpncore/net/conn/message/object/msgpack"
-	"github.com/FTwOoO/vpncore/net/gfw"
 )
 
 type ContextDialer interface {
 	Dial(srcAddr net.Addr, network string, addr string) (net.Conn, error)
 }
 
-var _ ContextDialer = new(GFWDialer)
+var _ ContextDialer = new(MultiplexerDialer)
 
-type GFWDialer struct {
+type MultiplexerDialer struct {
 	Pool    *msocks.ClientSessionPool
-	Gfwlist *gfw.ItemSet
 }
 
-func (d *GFWDialer) Dial(srcAddr net.Addr, network string, addr string) (net.Conn, error) {
+func (d *MultiplexerDialer) Dial(srcAddr net.Addr, network string, addr string) (net.Conn, error) {
 
-	host, _, err := net.SplitHostPort(addr)
+	_, _, err := net.SplitHostPort(addr)
 	if err != nil {
 		return nil, err
-	}
-
-	if d.Gfwlist.Hit(host) == false {
-		return net.Dial(network, addr)
 	}
 
 	session, err := d.Pool.Get()

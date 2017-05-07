@@ -20,31 +20,41 @@ package main
 import (
 	"flag"
 	"fmt"
+	_ "github.com/FTwOoO/vtunnel/client"
+	_ "github.com/FTwOoO/vtunnel/server"
+	"github.com/FTwOoO/vtunnel/tunnel"
+	"github.com/mholt/caddy"
 	"io/ioutil"
 	"log"
 	"os"
-	"github.com/mholt/caddy"
-	"github.com/FTwOoO/vtunnel/tunnel"
-	_ "github.com/FTwOoO/vtunnel/client"
-	_ "github.com/FTwOoO/vtunnel/server"
+	"os/exec"
+	"path"
+	"path/filepath"
+	"strings"
 )
 
 const appName = "vtunnel"
+const DEFAULT_CONF = "vtunnel.conf"
 
 var serverType string = tunnel.ServerType
 
 var (
 	conf string
-	validate bool
 )
 
 func init() {
+
+	curDir, err := GetCurrentExecDir()
+	if err != nil {
+		panic(err)
+	}
+	caddy.DefaultConfigFile = path.Join(curDir, DEFAULT_CONF)
+
 	caddy.TrapSignals()
-	flag.StringVar(&conf, "conf", "", "Caddyfile to load (default \"" + caddy.DefaultConfigFile + "\")")
+	flag.StringVar(&conf, "conf", "", "config file to load")
 	flag.StringVar(&caddy.PidFile, "pidfile", "", "Path to write pid file")
 	flag.BoolVar(&caddy.Quiet, "quiet", false, "Quiet mode (no initialization output)")
-	flag.BoolVar(&validate, "validate", false, "Parse the Caddyfile but do not start the server")
-	caddy.RegisterCaddyfileLoader("flag", caddy.LoaderFunc(confLoader))
+	caddy.RegisterCaddyfileLoader("vtunnelLoader", caddy.LoaderFunc(confLoader))
 
 }
 
@@ -63,18 +73,6 @@ func main() {
 	if err != nil {
 		mustLogFatalf("%v", err)
 	}
-
-	if validate {
-		err := caddy.ValidateAndExecuteDirectives(caddyfileinput, nil, true)
-		if err != nil {
-			mustLogFatalf("%v", err)
-		}
-		msg := "Config file is valid"
-		fmt.Println(msg)
-		log.Printf("[INFO] %s", msg)
-		os.Exit(0)
-	}
-
 	// Start your engines
 	instance, err := caddy.Start(caddyfileinput)
 	if err != nil {
@@ -107,6 +105,11 @@ func confLoader(serverType string) (caddy.Input, error) {
 		return caddy.CaddyfileFromPipe(os.Stdin, serverType)
 	}
 
+	if !strings.HasPrefix(conf, "/") {
+		execDir, _ := GetCurrentExecDir()
+		conf = path.Join(execDir, conf)
+	}
+
 	contents, err := ioutil.ReadFile(conf)
 	if err != nil {
 		return nil, err
@@ -118,3 +121,20 @@ func confLoader(serverType string) (caddy.Input, error) {
 	}, nil
 }
 
+func GetCurrentExecDir() (dir string, err error) {
+	path, err := exec.LookPath(os.Args[0])
+	if err != nil {
+		fmt.Printf("exec.LookPath(%s), err: %s\n", os.Args[0], err)
+		return "", err
+	}
+
+	absPath, err := filepath.Abs(path)
+	if err != nil {
+		fmt.Printf("filepath.Abs(%s), err: %s\n", path, err)
+		return "", err
+	}
+
+	dir = filepath.Dir(absPath)
+
+	return dir, nil
+}
