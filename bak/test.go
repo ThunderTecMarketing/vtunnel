@@ -14,7 +14,7 @@ import (
 
 func main() {
 
-	context1 := &transport.TransportStreamContext{
+	context1 := &transport.TCPTransportStreamContext{
 		Protocol:conn.PROTO_TCP,
 		ListenAddr:"",
 		RemoveAddr:fmt.Sprintf("127.0.0.1:%d", 10088)}

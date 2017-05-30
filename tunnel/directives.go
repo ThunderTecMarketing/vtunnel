@@ -3,6 +3,9 @@ package tunnel
 import (
 	"github.com/mholt/caddy"
 	"github.com/FTwOoO/vtunnel/msocks"
+	"strings"
+	"path"
+	"github.com/FTwOoO/vtunnel/util"
 )
 
 var directives = []string{
@@ -60,6 +63,11 @@ func SetupDirective(c *caddy.Controller) (err error) {
 					config.TransportKey = []byte(transportKey)
 				case "logFile":
 					config.LogFilePath, err = StringArg(c)
+					if !strings.HasPrefix(config.LogFilePath, "/") {
+						execDir, _ := util.GetCurrentExecDir()
+						config.LogFilePath = path.Join(execDir, config.LogFilePath)
+					}
+
 				case "logLevel":
 					config.LogLevel, err = StringArg(c)
 				}

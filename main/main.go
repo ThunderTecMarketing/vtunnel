@@ -19,7 +19,6 @@ package main
 
 import (
 	"flag"
-	"fmt"
 	_ "github.com/FTwOoO/vtunnel/client"
 	_ "github.com/FTwOoO/vtunnel/server"
 	"github.com/FTwOoO/vtunnel/tunnel"
@@ -27,9 +26,8 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
-	"os/exec"
 	"path"
-	"path/filepath"
+	"github.com/FTwOoO/vtunnel/util"
 	"strings"
 )
 
@@ -44,7 +42,7 @@ var (
 
 func init() {
 
-	curDir, err := GetCurrentExecDir()
+	curDir, err := util.GetCurrentExecDir()
 	if err != nil {
 		panic(err)
 	}
@@ -106,7 +104,7 @@ func confLoader(serverType string) (caddy.Input, error) {
 	}
 
 	if !strings.HasPrefix(conf, "/") {
-		execDir, _ := GetCurrentExecDir()
+		execDir, _ := util.GetCurrentExecDir()
 		conf = path.Join(execDir, conf)
 	}
 
@@ -121,20 +119,4 @@ func confLoader(serverType string) (caddy.Input, error) {
 	}, nil
 }
 
-func GetCurrentExecDir() (dir string, err error) {
-	path, err := exec.LookPath(os.Args[0])
-	if err != nil {
-		fmt.Printf("exec.LookPath(%s), err: %s\n", os.Args[0], err)
-		return "", err
-	}
 
-	absPath, err := filepath.Abs(path)
-	if err != nil {
-		fmt.Printf("filepath.Abs(%s), err: %s\n", path, err)
-		return "", err
-	}
-
-	dir = filepath.Dir(absPath)
-
-	return dir, nil
-}
