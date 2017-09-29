@@ -1,44 +1,7 @@
     
-TCP/UDP tunnel like [GitHub - shell909090/goproxy](https://github.com/shell909090/goproxy). 
+TCP/UDP tunnel like [GitHub - shell909090/goproxy](https://github.com/shell909090/goproxy), Base on caddy framework,
+Run as caddy plugin.
 
-## Features
-* Base on caddy framework with new server type.
-* SOCKS5 for local interface
-* Layers of encoders including msgpack. 
-* Multiplexing for connections
+Uncompleted and deprecated, https://caddyserver.com/docs/http.forwardproxy is a caddy plugin, when using HTTP2, will support 
+multiplexin, DONT reinvent the wheel on this project
 
-## Config
-
-### Server
-The server listen on `ftwo.me:10809`, using the transport `tcp-fragment-gcm256-msgpack` and transport
-key `e01ee3207ea15d346c362b7e20cef3a1088ec0a11a1141b3584ed44e2bb69531`:
-
-```
-0.0.0.0:10809 {
-    server {
-       transportType tcp-fragment-gcm256-msgpack
-       transportKey  e01ee3207ea15d346c362b7e20cef3a1088ec0a11a1141b3584ed44e2bb69531
-
-       logFile "./vtunnel_server.log"
-       logLevel DEBUG
-    }
-}
-```
-
-### Client
-The client listen on `localhost:1080` as SOCKS5 server, and forward connections to the vtunnel server `ftwo.me:10809`:
-
-```
-localhost:1080 {
-    client {
-       proxyType  socks5
-       remoteAddr  ftwo.me:10809
-
-       transportType tcp-fragment-gcm256-msgpack
-       transportKey  e01ee3207ea15d346c362b7e20cef3a1088ec0a11a1141b3584ed44e2bb69531
-
-       logFile "./vtunnel_client.log"
-       logLevel DEBUG
-    }
-}
-```
