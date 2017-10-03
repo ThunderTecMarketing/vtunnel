@@ -6,56 +6,32 @@
 package tunnel
 
 import (
-	"github.com/mholt/caddy"
 	"sync"
 	"time"
 	"net"
 	"runtime"
-	"errors"
+	"github.com/FTwOoO/vtunnel/socks5_server"
+	"github.com/FTwOoO/vtunnel/config"
+	"github.com/FTwOoO/vtunnel/proxy_dialer"
 )
 
-var ServerType = "tunnel"
-
-func init() {
-
-	caddy.RegisterServerType(ServerType, caddy.ServerType{
-		Directives: func() []string {
-			return directives
-		},
-		DefaultInput: func() caddy.Input {
-			return caddy.CaddyfileInput{
-				Contents:       []byte(""),
-				ServerTypeName: ServerType,
-			}
-		},
-		NewContext: func() caddy.Context {
-			return new(tunnelContext)
-		},
-	})
-
-	caddy.RegisterCaddyfileLoader(ConfigFileName, caddy.LoaderFunc(configLoader))
-
-}
-
 type Server struct {
-	listener    net.Listener
-	listenerMu  sync.Mutex
-	config      *Config
+	listener   net.Listener
+	listenerMu sync.Mutex
+	config     *config.Config
 
 	connTimeout time.Duration // max time to wait for a connection before force stop
 
-	doneChan    chan struct{}
+	doneChan chan struct{}
 }
 
-// ensure it satisfies the interface
-var _ caddy.GracefulServer = new(Server)
 var GracefulTimeout = 5 * time.Second
 
-func NewServer(config *Config) (*Server, error) {
+func NewServer(config *config.Config) (*Server, error) {
 	s := &Server{
-		config:       config,
+		config:      config,
 		connTimeout: GracefulTimeout,
-		doneChan: make(chan struct{}),
+		doneChan:    make(chan struct{}),
 	}
 
 	return s, nil
@@ -88,35 +64,25 @@ func (s *Server) Listen() (net.Listener, error) {
 		ln = tcpKeepAliveListener{TCPListener: tcpLn}
 	}
 
-	cln := ln.(caddy.Listener)
-
 	// Very important to return a concrete caddy.Listener
 	// implementation for graceful restarts.
-	return cln.(caddy.Listener), nil
+	return ln, nil
 }
-
 
 func (s *Server) Serve(ln net.Listener) error {
 	s.listenerMu.Lock()
 	s.listener = ln
 	s.listenerMu.Unlock()
 
-	var err error
+	diler := &proxy_dialer.HttpConnectDialer{C: s.config}
 
-	handler := s.config.GetHandler()
-	if handler == nil {
-		return errors.New("Invalid config")
+	sock5Serv := socks5_server.Socks5Server{
+		Selector: new(socks5_server.NoAuthSocksServerSelector),
+		Dialer:   diler,
 	}
-	err = handler(ln)
-	return err
-}
 
-func (s *Server) ListenPacket() (net.PacketConn, error) {
-	return nil, nil
-}
+	return sock5Serv.Serve(ln)
 
-func (s *Server) ServePacket(pc net.PacketConn) error {
-	return nil
 }
 
 func (s *Server) Address() string {
@@ -127,4 +93,3 @@ func (s *Server) Stop() error {
 	close(s.doneChan)
 	return nil
 }
-

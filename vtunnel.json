@@ -1,0 +1,9 @@
+{
+  "addr": "127.0.0.1:10089",
+  "log_level": "DEBUG",
+  "proxy_server": {
+    "http_version": "HTTP/1.1",
+    "proxy_credentials": "Basic dGVzdDpwYXNz",
+    "addr": "ftwo.me:443"
+  }
+}

@@ -1,10 +1,11 @@
-package client
+package socks5_server
 
 import (
 	"github.com/ginuerzh/gosocks5"
 	"net"
 	"io"
-	"github.com/pkg/errors"
+	"errors"
+	"golang.org/x/net/proxy"
 )
 
 type NoAuthSocksServerSelector struct{}
@@ -35,8 +36,8 @@ func (selector *NoAuthSocksServerSelector) OnSelected(method uint8, conn net.Con
 }
 
 type Socks5Server struct {
-	Selector         gosocks5.Selector
-	Dialer           ContextDialer
+	Selector gosocks5.Selector
+	Dialer   proxy.Dialer
 }
 
 func (s *Socks5Server) Serve(ln interface{}) (err error) {
@@ -96,7 +97,7 @@ func (s *Socks5Server) HandleRequest(conn net.Conn, req *gosocks5.Request) (err 
 }
 
 func (s *Socks5Server) handleConnect(conn net.Conn, req *gosocks5.Request) {
-	cc, err := s.Dialer.Dial(conn.RemoteAddr(), "tcp", req.Addr.String())
+	cc, err := s.Dialer.Dial("tcp", req.Addr.String())
 	if err != nil {
 		rep := gosocks5.NewReply(gosocks5.NetUnreachable, nil)
 		rep.Write(conn)
@@ -127,10 +128,10 @@ func (s *Socks5Server) connected(conn1, conn2 net.Conn) (err error) {
 		errc <- err
 	}()
 
-	select {
-	case err = <-errc:
+	err1 := <-errc
+	if err1 != nil {
+		return err1
 	}
-
-	return
+	err2 := <-errc
+	return err2
 }
-
